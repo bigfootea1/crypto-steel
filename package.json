@@ -1,0 +1,96 @@
+{
+  "name": "crypto-steel",
+  "productName": "crypto-steel",
+  "version": "1.0.0",
+  "description": "My Electron application description",
+  "main": ".webpack/main",
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "eslint --ext .ts,.tsx ."
+  },
+  "keywords": [],
+  "author": {
+    "name": "Darren Schueller",
+    "email": "dschueller@cognitivescale.com"
+  },
+  "license": "MIT",
+  "config": {
+    "forge": {
+      "packagerConfig": {},
+      "makers": [
+        {
+          "name": "@electron-forge/maker-squirrel",
+          "config": {
+            "name": "crypto_steel"
+          }
+        },
+        {
+          "name": "@electron-forge/maker-zip",
+          "platforms": [
+            "darwin"
+          ]
+        },
+        {
+          "name": "@electron-forge/maker-deb",
+          "config": {}
+        },
+        {
+          "name": "@electron-forge/maker-rpm",
+          "config": {}
+        }
+      ],
+      "plugins": [
+        [
+          "@electron-forge/plugin-webpack",
+          {
+            "mainConfig": "./webpack.main.config.js",
+            "renderer": {
+              "config": "./webpack.renderer.config.js",
+              "entryPoints": [
+                {
+                  "html": "./src/index.html",
+                  "js": "./src/renderer.ts",
+                  "name": "main_window"
+                }
+              ]
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^6.0.0-beta.61",
+    "@electron-forge/maker-deb": "^6.0.0-beta.61",
+    "@electron-forge/maker-rpm": "^6.0.0-beta.61",
+    "@electron-forge/maker-squirrel": "^6.0.0-beta.61",
+    "@electron-forge/maker-zip": "^6.0.0-beta.61",
+    "@electron-forge/plugin-webpack": "^6.0.0-beta.61",
+    "@types/lodash": "^4.14.173",
+    "@types/ws": "^7.4.7",
+    "@typescript-eslint/eslint-plugin": "^4.31.2",
+    "@typescript-eslint/parser": "^4.31.2",
+    "@vercel/webpack-asset-relocator-loader": "^1.7.0",
+    "copy-webpack-plugin": "^9.0.1",
+    "css-loader": "^6.3.0",
+    "electron": "15.0.0",
+    "eslint": "^7.32.0",
+    "eslint-plugin-import": "^2.24.2",
+    "fork-ts-checker-webpack-plugin": "^6.3.3",
+    "node-loader": "^2.0.0",
+    "style-loader": "^3.3.0",
+    "ts-loader": "^9.2.6",
+    "typescript": "^4.4.3"
+  },
+  "dependencies": {
+    "axios": "^0.21.4",
+    "cryptocurrency-icons": "^0.18.0",
+    "electron-squirrel-startup": "^1.0.0",
+    "lodash": "^4.17.21",
+    "reconnecting-websocket": "^4.4.0",
+    "ws": "^8.2.2"
+  }
+}
