@@ -5,6 +5,7 @@ import { app, Tray, Menu } from "electron";
 import { getIcon } from "./utils";
 
 import Ticker from "./Ticker";
+import GameSenseAPI from "./GameSenseAPI";
 
 export interface Config {
   base: string;
@@ -21,16 +22,15 @@ const defaultConfig: Config = {
 export default class CryptoSteel {
   private tray: Tray;
   private ticker: Ticker;
+  private effects: GameSenseAPI;
 
   private config: Config = defaultConfig;
 
   constructor() {
     this.tray = new Tray(getIcon());
     this.ticker = new Ticker();
-  }
 
-  private get currentPair() {
-    return `${this.config.base}/${this.config.quote}`;
+    this.effects = new GameSenseAPI();
   }
 
   private loadConfig(): void {
@@ -103,10 +103,9 @@ export default class CryptoSteel {
 
   async initialize(): Promise<void> {
     await this.ticker.initialize();
+    await this.effects.initialize();
     this.loadConfig();
     this.updateMenu();
-
-    console.log(this.ticker.coinMap);
   }
 
   dispose(): void {
