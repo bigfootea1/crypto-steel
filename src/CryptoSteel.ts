@@ -1,11 +1,13 @@
 import _ from "lodash";
 import path from "path";
 import fs from "fs";
-import { app, Tray, Menu } from "electron";
+import { BrowserWindow, app, Tray, Menu, NativeImage } from "electron";
 import { getIcon } from "./utils";
 
 import Ticker from "./Ticker";
-import GameSenseAPI from "./GameSenseAPI";
+import GameSense from "./GameSense";
+
+declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 
 export interface Config {
   base: string;
@@ -22,15 +24,16 @@ const defaultConfig: Config = {
 export default class CryptoSteel {
   private tray: Tray;
   private ticker: Ticker;
-  private effects: GameSenseAPI;
+  private effects: GameSense;
 
   private config: Config = defaultConfig;
+
+  private renderWindow: BrowserWindow;
 
   constructor() {
     this.tray = new Tray(getIcon());
     this.ticker = new Ticker();
-
-    this.effects = new GameSenseAPI();
+    this.effects = new GameSense();
   }
 
   private loadConfig(): void {
@@ -101,17 +104,54 @@ export default class CryptoSteel {
     this.tray.setContextMenu(contextMenu);
   }
 
+  private createRenderWindow() {
+    // Create the browser window.
+    this.renderWindow = new BrowserWindow({
+      width: 128,
+      height: 40,
+      minWidth: 128,
+      minHeight: 40,
+      minimizable: false,
+      maximizable: false,
+      transparent: false,
+      alwaysOnTop: true,
+      show: false,
+      frame: false,
+      resizable: false,
+      // useContentSize: true,
+      backgroundColor: '#000',
+      webPreferences: { offscreen: true, nodeIntegration: false } 
+    });
+
+    this.renderWindow.webContents.on("paint", (event, dirty, image: NativeImage) => {
+      this.effects.updateOLED(dirty, image);
+    });
+
+    this.renderWindow.webContents.setFrameRate(10);
+
+    // Open the DevTools.
+    // this.renderWindow.webContents.openDevTools();
+
+    this.renderWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+  }
+  
   async initialize(): Promise<void> {
     await this.ticker.initialize();
     await this.effects.initialize();
     this.loadConfig();
     this.updateMenu();
+    this.createRenderWindow();
   }
 
-  dispose(): void {
+  async dispose(): Promise<void> {
     if (this.ticker) {
       this.ticker.dispose();
     }
+
+    console.log('before dispose');
+    await this.effects.dispose();
+    console.log('after dispose');
+
     this.tray.destroy();
   }
 }

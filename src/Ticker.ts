@@ -14,6 +14,13 @@ export type TickerUpdate = [
   pair: string
 ];
 
+export type OHLCUpdate = [
+  channelId: number,
+  data: number[],
+  channelName: string,
+  pair: string
+];
+
 export default class Ticker extends EventEmitter {
   private ax: AxiosInstance;
   private ws: ReconnectingWebSocket;
@@ -115,8 +122,14 @@ export default class Ticker extends EventEmitter {
     }
   };
 
-  private tickerUpdate = (data: TickerUpdate): void => {
-    console.log("Ticker Update: ", data[1]);
+  private tickerUpdate = (data: OHLCUpdate): void => {
+
+    const open = data[1][2];
+    const close = data[1][5];
+    const diff = (close - open);
+    const delta = diff / open;
+
+    // console.log(`Ticker: ${open} - ${close} - ${diff} - ${delta}`);
   };
 
   private heartbeat = (): void => {
@@ -149,7 +162,7 @@ export default class Ticker extends EventEmitter {
         event: "subscribe",
         pair: [`${base}/${quote}`],
         subscription: {
-          name: "ticker",
+          name: "ohlc",
         },
       })
     );

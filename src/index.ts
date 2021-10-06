@@ -1,21 +1,38 @@
-import { app } from 'electron';
-import CryptoSteel from './CryptoSteel';
+import { app } from "electron";
+import CryptoSteel from "./CryptoSteel";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require('electron-squirrel-startup')) { // eslint-disable-line global-require
+if (require("electron-squirrel-startup")) {
+  // eslint-disable-line global-require
   app.quit();
 }
 
 let cryptosteel: CryptoSteel;
 
-app.on('ready', async () => {
+// Quit when all windows are closed, except on macOS. There, it's common
+// for applications and their menu bar to stay active until the user quits
+// explicitly with Cmd + Q.
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
+
+app.on("ready", async () => {
   cryptosteel = new CryptoSteel();
   await cryptosteel.initialize();
 });
 
-app.on('before-quit', () => {
-  if(cryptosteel) {
+// app.on("activate", () => {
+//   // On OS X it's common to re-create a window in the app when the
+//   // dock icon is clicked and there are no other windows open.
+//   if (BrowserWindow.getAllWindows().length === 0) {
+//     createWindow();
+//   }
+// });
+
+app.on("before-quit", async () => {
+  if (cryptosteel) {
     cryptosteel.dispose();
   }
 });
-
