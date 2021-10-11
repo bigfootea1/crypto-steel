@@ -9,6 +9,8 @@ import GameSense from "./GameSense";
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 
+const DEBUG_OFFSCREEN_BROWSER = true;
+
 export interface Config {
   base: string;
   quote: string;
@@ -98,7 +100,10 @@ export default class CryptoSteel {
       { icon: getIcon(this.config.base), label: `Coin`, type: "submenu", submenu: baseSubmenu as any },
       { icon: getIcon(this.config.quote), label: `Currency`, type: "submenu", submenu: quoteSubmenu as any },
       { type: "separator" },
-      { label: "Quit", type: "normal", role: "quit" },
+      { label: "Quit", type: "normal", click: async () => {
+        await this.dispose();
+        app.quit();
+      } },
     ]);
 
     this.tray.setContextMenu(contextMenu);
@@ -113,14 +118,18 @@ export default class CryptoSteel {
       minHeight: 40,
       minimizable: false,
       maximizable: false,
-      transparent: false,
-      alwaysOnTop: true,
-      show: false,
+      transparent: true,
+      alwaysOnTop: DEBUG_OFFSCREEN_BROWSER,
+      show: DEBUG_OFFSCREEN_BROWSER,
       frame: false,
       resizable: false,
       // useContentSize: true,
-      backgroundColor: '#000',
-      webPreferences: { offscreen: true, nodeIntegration: false } 
+      // backgroundColor: '#000',
+      webPreferences: { 
+        offscreen: !DEBUG_OFFSCREEN_BROWSER, 
+        nodeIntegration: true,
+        preload: path.join(__dirname, 'preload.js') 
+      } 
     });
 
     this.renderWindow.webContents.on("paint", (event, dirty, image: NativeImage) => {
@@ -129,8 +138,9 @@ export default class CryptoSteel {
 
     this.renderWindow.webContents.setFrameRate(10);
 
-    // Open the DevTools.
-    // this.renderWindow.webContents.openDevTools();
+    if(DEBUG_OFFSCREEN_BROWSER) {
+      this.renderWindow.webContents.openDevTools();
+    }
 
     this.renderWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
   }
@@ -144,14 +154,11 @@ export default class CryptoSteel {
   }
 
   async dispose(): Promise<void> {
-    if (this.ticker) {
-      this.ticker.dispose();
-    }
-
-    console.log('before dispose');
+    console.log('Disposing ticker...');
+    await this.ticker.dispose();
+    console.log('Disposing effects...');
     await this.effects.dispose();
-    console.log('after dispose');
-
+    console.log('Destroying tray...');
     this.tray.destroy();
   }
 }

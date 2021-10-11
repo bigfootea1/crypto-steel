@@ -2,11 +2,16 @@
 <html>
   <head>
     <meta charset="UTF-8">
+    <link href="assets/cryptofont/cryptofont.min.css"rel="stylesheet">    
   </head>
   <body>
-    <div class='tickerRow'>
-      <img class='tickerLogo' src='assets/mono/btc.png'/>
-      <div class='tickerText'>$45,000 <span>USD</span></div>
-    </div>
+      <i id='logo' class="tickerLogo cf cf-btc"></i>
+      <div style='display: flex'>
+        <div class='tickerSpacer'></div>
+        <div class='tickerRow'>
+          <div id='price' class='tickerText'>$445,000</div>
+          <div id='quote' class='tickerQuote'>USD</div>
+        </div>
+      </div>
   </body>
 </html>

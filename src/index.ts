@@ -31,8 +31,8 @@ app.on("ready", async () => {
 //   }
 // });
 
-app.on("before-quit", async () => {
-  if (cryptosteel) {
-    cryptosteel.dispose();
-  }
-});
+// app.on("before-quit", async () => {
+//   if (cryptosteel) {
+//     cryptosteel.dispose();
+//   }
+// });

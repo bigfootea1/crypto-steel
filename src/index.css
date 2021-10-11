@@ -1,6 +1,4 @@
 body {
-  font-family: sans-serif;
-  font-size: 14px;
   color: #FFF;
   margin: 0;
   padding: 0;
@@ -11,21 +9,38 @@ body {
 }
 
 .tickerRow {
+  overflow: hidden;
   display: flex;
+  flex-direction: column;
   align-items: center;
   height: 100vh;
   padding: 1px;
+  justify-content: center;
 }
 
 .tickerLogo {
-  padding: 2px;
-}
-
-.tickerText {
-  flex-grow: 1;
+  overflow: hidden;
+  position:absolute;
+  top: 2px;
+  height: 100%;
+  font-size: 38px;
   text-align: center;
 }
 
-.tickerText span {
-  font-size: 10px;
+.tickerText {
+  overflow: hidden;
+  text-align: center;
+  font-family: monospace;
+  font-size: 15px;
+}
+
+.tickerQuote {
+  overflow: hidden;
+  font-family: monospace;
+  font-size: 15px;
+}
+
+.tickerSpacer {
+  overflow: hidden;
+  flex-grow: 1.5;
 }

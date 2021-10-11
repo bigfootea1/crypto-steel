@@ -75,7 +75,6 @@ export default class GameSense extends EventEmitter {
   }
 
   heartbeat = (): void => {
-    console.log("Sending heartbeat...");
     this.ax.post("/game_heartbeat", {
       game: GAMESENSE_GAME_NAME,
     });
@@ -87,7 +86,7 @@ export default class GameSense extends EventEmitter {
       for(let x=rect.x; x < (rect.x+rect.width); x++) {
         const srcIndex = y*(this.width*4) + (x*4);
         const destIndex = (y*this.width) + x;
-        const srcVal = bmp[srcIndex] + bmp[srcIndex+1] + bmp[srcIndex+2];
+        const srcVal = (bmp[srcIndex] + bmp[srcIndex+1] + bmp[srcIndex+2]) >= (128*3);
         this.bitmapBuffer[destIndex] = srcVal ? 1 : 0;
       }
     }
@@ -109,10 +108,14 @@ export default class GameSense extends EventEmitter {
   };
 
   async dispose(): Promise<void> {
+    if(this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+    }
+    console.log('Removing game...');
     await this.ax.post("/remove_game", {
       game: GAMESENSE_GAME_NAME,
     });
-    console.log("dispose");
+    console.log("GameSense disposed");
   }
 
   async register(): Promise<void> {

@@ -42,12 +42,14 @@ export default class Ticker extends EventEmitter {
       },
     });
 
-    this.ws = new ReconnectingWebSocket(PUBLIC_WSS_URL, [], { WebSocket: WS });
+    this.ws = new ReconnectingWebSocket(PUBLIC_WSS_URL, [], { WebSocket: WS, startClosed: true });
 
     this.ws.onopen = this.onOpen;
     this.ws.onclose = this.onClose;
     this.ws.onerror = this.onError;
     this.ws.onmessage = this.onMessage;
+
+    this.ws.reconnect();
   }
 
   get pairs(): any[] {
@@ -92,9 +94,14 @@ export default class Ticker extends EventEmitter {
     });
   }
 
-  dispose(): void {
-    if (this.ws) {
-      this.ws.close(1000);
+  async dispose(): Promise<void> {
+    if(this.ws.readyState === ReconnectingWebSocket.OPEN) {
+      return new Promise((resolve) => {
+        this.ws.addEventListener('close', () => {
+          resolve();
+        });
+        this.ws.close(1000);
+      });
     }
   }
 
