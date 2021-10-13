@@ -1,15 +1,13 @@
+import { app, BrowserWindow, Menu, NativeImage, Tray } from "electron";
+import fs from "fs";
 import _ from "lodash";
 import path from "path";
-import fs from "fs";
-import { BrowserWindow, app, Tray, Menu, NativeImage } from "electron";
+import GameSense from "./GameSense";
+import Ticker from "./Ticker";
 import { getIcon } from "./utils";
 
-import Ticker from "./Ticker";
-import GameSense from "./GameSense";
-
-declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
-
-const DEBUG_OFFSCREEN_BROWSER = true;
+const DEBUG_OFFSCREEN_BROWSER = false;
+const DEVTOOLS_ENABLED = false;
 
 export interface Config {
   base: string;
@@ -36,7 +34,22 @@ export default class CryptoSteel {
     this.tray = new Tray(getIcon());
     this.ticker = new Ticker();
     this.effects = new GameSense();
+
+    this.ticker.on('update', this.onTickerUpdate);
+    this.ticker.on('heartbeat', this.onHeartbeat);
   }
+
+  private onTickerUpdate = (data: any) => {
+    if(this.renderWindow) {
+      this.renderWindow.webContents.send('tickerupdate', data);
+    }
+  };
+
+  private onHeartbeat = () => {
+    if(this.renderWindow) {
+      this.renderWindow.webContents.send('heartbeat');
+    }
+  };
 
   private loadConfig(): void {
     const configPath = path.join(app.getPath("userData"), ".config");
@@ -122,12 +135,11 @@ export default class CryptoSteel {
       alwaysOnTop: DEBUG_OFFSCREEN_BROWSER,
       show: DEBUG_OFFSCREEN_BROWSER,
       frame: false,
-      resizable: false,
-      // useContentSize: true,
-      // backgroundColor: '#000',
-      webPreferences: { 
+      resizable: true,
+      webPreferences: {
         offscreen: !DEBUG_OFFSCREEN_BROWSER, 
         nodeIntegration: true,
+        contextIsolation: false,
         preload: path.join(__dirname, 'preload.js') 
       } 
     });
@@ -138,11 +150,11 @@ export default class CryptoSteel {
 
     this.renderWindow.webContents.setFrameRate(10);
 
-    if(DEBUG_OFFSCREEN_BROWSER) {
+    if(DEBUG_OFFSCREEN_BROWSER || DEVTOOLS_ENABLED) {
       this.renderWindow.webContents.openDevTools();
     }
 
-    this.renderWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+    this.renderWindow.loadFile(path.join(__dirname, "../index.html"));
   }
   
   async initialize(): Promise<void> {

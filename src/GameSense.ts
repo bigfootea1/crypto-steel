@@ -4,6 +4,7 @@ import axios, { AxiosInstance } from "axios";
 import EventEmitter from "events";
 // import _ from "lodash";
 import { create } from 'bitwise/buffer';
+import { nativeImage } from "electron";
 
 const GAMESENSE_CONFIG_LOCATION =
   os.platform() === "win32"
@@ -19,11 +20,9 @@ export default class GameSense extends EventEmitter {
   private heartbeatTimer: NodeJS.Timer;
   
   private bitmapBuffer: any;
-  private rgbaBuffer: any;
   
   constructor(private width: number = 128, private height: number = 40) {
     super();
-
     this.bitmapBuffer = Buffer.alloc(width * height, 0);
   }
 
@@ -47,23 +46,23 @@ export default class GameSense extends EventEmitter {
         developer: GAMESENSE_GAME_DEVELOPER,
       });
 
-      await this.ax.post("/bind_game_event", {
-        game: GAMESENSE_GAME_NAME,
-        event: "SCREENUPDATE",
-        value_optional: true,
-        handlers: [
-          {
-            "device-type": "screened-128x40",
-            "mode": "screen",
-            "zone": "one",
-            "value_optional": true,
-            "datas": [{
-              "has-text": false,
-              "image-data": [...create(this.bitmapBuffer)]
-            }]
-          }          
-        ]
-      });
+      // await this.ax.post("/bind_game_event", {
+      //   game: GAMESENSE_GAME_NAME,
+      //   event: "SCREENUPDATE",
+      //   value_optional: true,
+      //   handlers: [
+      //     {
+      //       "device-type": "screened-128x40",
+      //       "mode": "screen",
+      //       "zone": "one",
+      //       "value_optional": true,
+      //       "datas": [{
+      //         "has-text": false,
+      //         "image-data": [...create(this.bitmapBuffer)]
+      //       }]
+      //     }          
+      //   ]
+      // });
     
       this.heartbeatTimer = setInterval(
         this.heartbeat,
@@ -80,7 +79,7 @@ export default class GameSense extends EventEmitter {
     });
   };
 
-  updateOLED = (rect: Electron.Rectangle, img: Electron.NativeImage): void => {
+  updateOLED = async (rect: Electron.Rectangle, img: Electron.NativeImage): Promise<void> => {
     const bmp = img.getBitmap();
     for(let y=rect.y; y < (rect.y+rect.height); y++) {
       for(let x=rect.x; x < (rect.x+rect.width); x++) {
@@ -101,21 +100,28 @@ export default class GameSense extends EventEmitter {
       }
     };
 
-    this.ax.post("/game_event", evt).catch((err) => {
+    await this.ax.post("/game_event", evt).catch((err) => {
       console.error(err);
     });
-    
+  };
+
+  clearOLED = async (): Promise<void> => {
+    await this.updateOLED({
+      height: this.height,
+      width: this.width,
+      x: 0,
+      y: 0
+    } as Electron.Rectangle, nativeImage.createEmpty());
   };
 
   async dispose(): Promise<void> {
     if(this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
     }
-    console.log('Removing game...');
+    await this.clearOLED();
     await this.ax.post("/remove_game", {
       game: GAMESENSE_GAME_NAME,
     });
-    console.log("GameSense disposed");
   }
 
   async register(): Promise<void> {

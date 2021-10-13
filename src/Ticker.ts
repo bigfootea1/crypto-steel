@@ -1,8 +1,9 @@
-import axios, { AxiosInstance } from "axios";
+import axios from "axios";
+import { powerMonitor } from "electron";
 import EventEmitter from "events";
-import WS from "ws";
-import ReconnectingWebSocket from "reconnecting-websocket";
 import _ from "lodash";
+import ReconnectingWebSocket from "reconnecting-websocket";
+import WS from "ws";
 
 const PUBLIC_REST_URL = "https://api.kraken.com/0/public/";
 const PUBLIC_WSS_URL = "wss://ws.kraken.com";
@@ -22,32 +23,33 @@ export type OHLCUpdate = [
 ];
 
 export default class Ticker extends EventEmitter {
-  private ax: AxiosInstance;
   private ws: ReconnectingWebSocket;
 
   private _assets: any[];
-
   private subscription: any;
+
+  private base: string;
+  private quote: string;
 
   constructor() {
     super();
 
-    this.ax = axios.create({
-      baseURL: PUBLIC_REST_URL,
-      maxContentLength: 1000000,
-      maxBodyLength: 1000000,
-      maxRedirects: 0,
-      headers: {
-        "Accept-Encoding": "gzip",
-      },
+    process.on("uncaughtException", function (error) {
+      console.error("ERROR HERE: ", error);
     });
 
-    this.ws = new ReconnectingWebSocket(PUBLIC_WSS_URL, [], { WebSocket: WS, startClosed: true });
+    this.ws = new ReconnectingWebSocket(PUBLIC_WSS_URL, [], {
+      WebSocket: WS,
+      startClosed: true
+    });
 
     this.ws.onopen = this.onOpen;
     this.ws.onclose = this.onClose;
     this.ws.onerror = this.onError;
     this.ws.onmessage = this.onMessage;
+
+    powerMonitor.on("suspend", () => this.onSuspend());
+    powerMonitor.on("resume", () => this.onResume());
 
     this.ws.reconnect();
   }
@@ -73,9 +75,37 @@ export default class Ticker extends EventEmitter {
     return val;
   }
 
+  onSuspend = (): void => {
+    console.log('SUSPENDING');
+    this.ws.close();
+  };
+
+  onResume = (): void => {
+    console.log('RESUMING');
+    this.ws.reconnect();
+  };
+
+  parsePair(pairString: string): { base: string; quote: string } {
+    const pair = pairString.split("/");
+    const base = pair[0] === "XBT" ? "BTC" : pair[0];
+    const quote = pair[1] === "XBT" ? "BTC" : pair[1];
+    return {
+      base,
+      quote,
+    };
+  }
+
   async initialize(): Promise<void> {
-    const assets = await this.ax
-      .get("AssetPairs")
+    const assets = await axios
+      .get("AssetPairs", {
+        baseURL: PUBLIC_REST_URL,
+        maxContentLength: 1000000,
+        maxBodyLength: 1000000,
+        maxRedirects: 0,
+        headers: {
+          "Accept-Encoding": "gzip",
+        },
+      })
       .then((r) => r.data.result)
       .catch((err) => {
         console.error(err);
@@ -83,9 +113,7 @@ export default class Ticker extends EventEmitter {
       });
 
     this._assets = _.map(assets, (a) => {
-      const pair = a.wsname.split("/");
-      const base = pair[0] === "XBT" ? "BTC" : pair[0];
-      const quote = pair[1] === "XBT" ? "BTC" : pair[1];
+      const { base, quote } = this.parsePair(a.wsname);
       return {
         base,
         quote,
@@ -95,9 +123,9 @@ export default class Ticker extends EventEmitter {
   }
 
   async dispose(): Promise<void> {
-    if(this.ws.readyState === ReconnectingWebSocket.OPEN) {
+    if (this.ws.readyState === ReconnectingWebSocket.OPEN) {
       return new Promise((resolve) => {
-        this.ws.addEventListener('close', () => {
+        this.ws.addEventListener("close", () => {
           resolve();
         });
         this.ws.close(1000);
@@ -107,6 +135,16 @@ export default class Ticker extends EventEmitter {
 
   private onOpen = (): void => {
     this.emit("connected");
+
+    this.ws.send(
+      JSON.stringify({
+        event: "subscribe",
+        pair: [`${this.base}/${this.quote}`],
+        subscription: {
+          name: "ohlc",
+        },
+      })
+    );
   };
 
   private onClose = (): void => {
@@ -130,17 +168,25 @@ export default class Ticker extends EventEmitter {
   };
 
   private tickerUpdate = (data: OHLCUpdate): void => {
-
     const open = data[1][2];
     const close = data[1][5];
-    const diff = (close - open);
-    const delta = diff / open;
+    const diff = close - open;
+    const delta = (diff / open) * 100;
 
-    // console.log(`Ticker: ${open} - ${close} - ${diff} - ${delta}`);
+    const { base, quote } = this.parsePair(this.subscription.pair);
+
+    this.emit("update", {
+      open,
+      close,
+      diff,
+      delta,
+      base,
+      quote,
+    });
   };
 
   private heartbeat = (): void => {
-    // console.log('.');
+    this.emit("heartbeat");
   };
 
   private systemStatus = (data: any): void => {
@@ -163,29 +209,8 @@ export default class Ticker extends EventEmitter {
   };
 
   public subscribe = (base: string, quote: string): void => {
-    this.unsubscribe();
-    this.ws.send(
-      JSON.stringify({
-        event: "subscribe",
-        pair: [`${base}/${quote}`],
-        subscription: {
-          name: "ohlc",
-        },
-      })
-    );
-  };
-
-  public unsubscribe = (): void => {
-    if (this.subscription) {
-      this.ws.send(
-        JSON.stringify({
-          event: "unsubscribe",
-          subscription: {
-            name: this.subscription.channelName,
-          },
-          pair: [this.subscription.pair],
-        })
-      );
-    }
+    this.base = base;
+    this.quote = quote;
+    this.ws.reconnect();
   };
 }
