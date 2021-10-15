@@ -2,15 +2,16 @@
   "name": "crypto-steel",
   "version": "1.0.0",
   "description": "Crypto Ticker for your SteelSeries gear",
-  "main": "./main.js",
+  "main": "./app/main.js",
   "scripts": {
-    "clean": "rimraf out",
+    "clean": "rimraf app dist",
+    "superclean": "npm run clean && rimraf package-lock.json node_modules",
     "build": "tsc",
     "watch": "tsc -w",
     "lint": "eslint -c .eslintrc --ext .ts ./src",
-    "start": "npm run build && electron ./dist/main.js",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder"    
+    "start": "npm run build && electron ./app/main.js",
+    "pack": "npm run clean && npm run build && electron-builder --dir",
+    "dist": "npm run clean && npm run build && electron-builder"    
   },
   "repository": "",
   "keywords": [],
@@ -38,8 +39,22 @@
   },
   "build": {
     "appId": "bigfoot.crypto-steel",
+    "files": [
+      "!**/*.map",
+      "!**/source/*",
+      "!.vscode",
+      "!workspace.code-workspace",
+      "!tsconfig.json",
+      "!**/*.md",
+      "!**/LICENSE"
+    ],
+    "asar": true,
     "mac": {
-      "category": "bigfoot.crypto-steel.ticker"
-    }
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+			"verifyUpdateCodeSignature": false,
+			"icon": "build/icon.png"
+		}    
   }
 }

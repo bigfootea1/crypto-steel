@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, NativeImage, Tray } from "electron";
+import { app, BrowserWindow, Menu, NativeImage, Tray, ipcMain } from "electron";
 import fs from "fs";
 import _ from "lodash";
 import path from "path";
@@ -7,36 +7,30 @@ import Ticker from "./Ticker";
 import { getIcon } from "./utils";
 
 const DEBUG_OFFSCREEN_BROWSER = false;
-const DEVTOOLS_ENABLED = false;
-
-export interface Config {
-  base: string;
-  quote: string;
-  updateRate: number;
-}
-
-const defaultConfig: Config = {
-  base: "BTC",
-  quote: "USD",
-  updateRate: 0,
-};
+const DEVTOOLS_ENABLED = true || DEBUG_OFFSCREEN_BROWSER;
+const DEBUG_EFFECTS = true;
 
 export default class CryptoSteel {
   private tray: Tray;
   private ticker: Ticker;
   private effects: GameSense;
 
-  private config: Config = defaultConfig;
-
   private renderWindow: BrowserWindow;
 
   constructor() {
+
+    app.setAppLogsPath();
+
     this.tray = new Tray(getIcon());
     this.ticker = new Ticker();
     this.effects = new GameSense();
 
     this.ticker.on('update', this.onTickerUpdate);
     this.ticker.on('heartbeat', this.onHeartbeat);
+
+    // ipcMain.on('update', () => {
+    //   console.log('update request from browser');
+    // });
   }
 
   private onTickerUpdate = (data: any) => {
@@ -51,75 +45,54 @@ export default class CryptoSteel {
     }
   };
 
-  private loadConfig(): void {
-    const configPath = path.join(app.getPath("userData"), ".config");
-    if (!fs.existsSync(configPath)) {
-      fs.writeFileSync(configPath, JSON.stringify(defaultConfig));
-    }
-    this.config = JSON.parse(fs.readFileSync(configPath).toString());
-
-    if(!_.has(this.ticker.coinMap[this.config.quote], this.config.base)) {
-      if(_.has(this.ticker.coinMap[this.config.quote], 'BTC')) {
-        this.config.base = 'BTC';
-      }
-      else {
-        const k = _.keys(this.ticker.coinMap[this.config.quote]);
-        this.config.base = _.head(k);
-      }
-    }
-
-    this.tray.setImage(getIcon(this.config.base));
-    this.ticker.subscribe(this.config.base, this.config.quote);
-  }
-
-  private saveConfig() {
-    const configPath = path.join(app.getPath("userData"), ".config");
-    fs.writeFileSync(configPath, JSON.stringify(this.config));
-    this.loadConfig();
-  }
-
-  private configChanged() {
-    this.saveConfig();
-    this.updateMenu();
-  }
-
   updateMenu(): void {
 
     const quoteSubmenu = _.map(_.keys(this.ticker.coinMap), (q) => {
       return {
         label: q,
         type: "checkbox",
-        checked: q === this.config.quote,
+        checked: q === this.ticker.quote,
         click: (item: any) => {
-          this.config.quote = item.label;
-          this.configChanged();
+          this.ticker.subscribe(this.ticker.base, item.label);
+          this.updateMenu();
         },
       };
     });
 
-    const baseSubmenu = _.map(this.ticker.coinMap[this.config.quote], (q) => {
+    const baseSubmenu = _.map(this.ticker.coinMap[this.ticker.quote], (q) => {
       return {
         label: q.base,
         type: "checkbox",
-        checked: q.base === this.config.base,
+        checked: q.base === this.ticker.base,
         click: (item: any) => {
-          this.config.base = item.label;
-          this.configChanged();
+          this.ticker.subscribe(item.label, this.ticker.quote);
+          this.updateMenu();
         },
       };
     });
 
-    const contextMenu = Menu.buildFromTemplate([
-      { icon: getIcon(this.config.base), label: `Coin`, type: "submenu", submenu: baseSubmenu as any },
-      { icon: getIcon(this.config.quote), label: `Currency`, type: "submenu", submenu: quoteSubmenu as any },
-      { type: "separator" },
-      { label: "Quit", type: "normal", click: async () => {
+    const menuItemList: Electron.MenuItemConstructorOptions[] = [];
+
+    menuItemList.push({ icon: getIcon(this.ticker.base), label: `Coin`, type: "submenu", submenu: baseSubmenu as any });
+    menuItemList.push({ icon: getIcon(this.ticker.quote), label: `Currency`, type: "submenu", submenu: quoteSubmenu as any });
+
+    if(DEBUG_EFFECTS) {
+      menuItemList.push({ type: "separator" });
+      menuItemList.push({ label: "Trigger UPTICK", type: "normal", click: async () => await this.effects.triggerEvent("UPTICK")});
+      menuItemList.push({ label: "Trigger DNTICK", type: "normal", click: async () => await this.effects.triggerEvent("DNTICK")});
+    }
+
+    menuItemList.push({ type: "separator" });
+    menuItemList.push({ label: "Quit", type: "normal", click: async () => {
         await this.dispose();
         app.quit();
-      } },
-    ]);
+      } });
+
+    const contextMenu = Menu.buildFromTemplate(menuItemList);
 
     this.tray.setContextMenu(contextMenu);
+
+    this.tray.setImage(getIcon(this.ticker.base));
   }
 
   private createRenderWindow() {
@@ -154,23 +127,19 @@ export default class CryptoSteel {
       this.renderWindow.webContents.openDevTools();
     }
 
-    this.renderWindow.loadFile(path.join(__dirname, "../index.html"));
+    this.renderWindow.loadFile(path.join(__dirname, "../static/html/index.html"));
   }
   
   async initialize(): Promise<void> {
     await this.ticker.initialize();
     await this.effects.initialize();
-    this.loadConfig();
     this.updateMenu();
     this.createRenderWindow();
   }
 
   async dispose(): Promise<void> {
-    console.log('Disposing ticker...');
     await this.ticker.dispose();
-    console.log('Disposing effects...');
     await this.effects.dispose();
-    console.log('Destroying tray...');
     this.tray.destroy();
   }
 }

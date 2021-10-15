@@ -1,5 +1,7 @@
+import path from 'path';
+import fs from 'fs';
 import axios from "axios";
-import { powerMonitor } from "electron";
+import { app, powerMonitor } from "electron";
 import EventEmitter from "events";
 import _ from "lodash";
 import ReconnectingWebSocket from "reconnecting-websocket";
@@ -7,6 +9,18 @@ import WS from "ws";
 
 const PUBLIC_REST_URL = "https://api.kraken.com/0/public/";
 const PUBLIC_WSS_URL = "wss://ws.kraken.com";
+
+export type Config = {
+  base: string;
+  quote: string;
+  updateRate: number;
+};
+
+const defaultConfig: Config = {
+  base: "BTC",
+  quote: "USD",
+  updateRate: 0,
+};
 
 export type TickerUpdate = [
   channelId: number,
@@ -28,8 +42,7 @@ export default class Ticker extends EventEmitter {
   private _assets: any[];
   private subscription: any;
 
-  private base: string;
-  private quote: string;
+  private config: Config;
 
   constructor() {
     super();
@@ -51,7 +64,7 @@ export default class Ticker extends EventEmitter {
     powerMonitor.on("suspend", () => this.onSuspend());
     powerMonitor.on("resume", () => this.onResume());
 
-    this.ws.reconnect();
+    this.loadConfig();
   }
 
   get pairs(): any[] {
@@ -75,17 +88,25 @@ export default class Ticker extends EventEmitter {
     return val;
   }
 
-  onSuspend = (): void => {
+  get base(): string {
+    return this.config.base;
+  }
+
+  get quote(): string {
+    return this.config.quote;
+  }
+
+  private onSuspend = (): void => {
     console.log('SUSPENDING');
     this.ws.close();
   };
 
-  onResume = (): void => {
+  private onResume = (): void => {
     console.log('RESUMING');
     this.ws.reconnect();
   };
 
-  parsePair(pairString: string): { base: string; quote: string } {
+  private parsePair(pairString: string): { base: string; quote: string } {
     const pair = pairString.split("/");
     const base = pair[0] === "XBT" ? "BTC" : pair[0];
     const quote = pair[1] === "XBT" ? "BTC" : pair[1];
@@ -93,6 +114,19 @@ export default class Ticker extends EventEmitter {
       base,
       quote,
     };
+  }
+
+  private loadConfig(): void {
+    const configPath = path.join(app.getPath("userData"), ".config");
+    if (!fs.existsSync(configPath)) {
+      fs.writeFileSync(configPath, JSON.stringify(defaultConfig));
+    }
+    this.config = JSON.parse(fs.readFileSync(configPath).toString());
+  }
+
+  private saveConfig() {
+    const configPath = path.join(app.getPath("userData"), ".config");
+    fs.writeFileSync(configPath, JSON.stringify(this.config));
   }
 
   async initialize(): Promise<void> {
@@ -120,6 +154,8 @@ export default class Ticker extends EventEmitter {
         pair: `${base}/${quote}`,
       };
     });
+
+    this.subscribe(this.config.base, this.config.quote);
   }
 
   async dispose(): Promise<void> {
@@ -134,12 +170,13 @@ export default class Ticker extends EventEmitter {
   }
 
   private onOpen = (): void => {
+    console.log("OPENED: ", this.config);
     this.emit("connected");
 
     this.ws.send(
       JSON.stringify({
         event: "subscribe",
-        pair: [`${this.base}/${this.quote}`],
+        pair: [`${this.config.base}/${this.config.quote}`],
         subscription: {
           name: "ohlc",
         },
@@ -173,7 +210,9 @@ export default class Ticker extends EventEmitter {
     const diff = close - open;
     const delta = (diff / open) * 100;
 
-    const { base, quote } = this.parsePair(this.subscription.pair);
+    const { base, quote } = this.parsePair(data[3]);
+
+    console.log('TICKER: ', data);
 
     this.emit("update", {
       open,
@@ -190,14 +229,17 @@ export default class Ticker extends EventEmitter {
   };
 
   private systemStatus = (data: any): void => {
+    console.log("STATUS: ", data);
     this.emit("status", data);
   };
 
   private subscriptionStatus = (data: any): void => {
     if (data.status === "subscribed") {
+      console.log("SUBSCRIBED: ", data);
       this.subscription = data;
     }
     if (data.status === "unsubscribed") {
+      console.log("UNSUBSCRIBED: ", data);
       if (
         data.channelName === this.subscription.channelName &&
         data.pair === this.subscription.pair
@@ -209,8 +251,37 @@ export default class Ticker extends EventEmitter {
   };
 
   public subscribe = (base: string, quote: string): void => {
-    this.base = base;
-    this.quote = quote;
+  
+    this.config.base = base;
+    this.config.quote = quote;
+
+    if(!_.has(this.coinMap[this.config.quote], this.config.base)) {
+      if(_.has(this.coinMap[this.config.quote], 'BTC')) {
+        this.config.base = 'BTC';
+      }
+      else {
+        const k = _.keys(this.coinMap[this.config.quote]);
+        this.config.base = _.head(k);
+      }
+    }
+
+    this.saveConfig();
+
     this.ws.reconnect();
   };
+
+  // public unsubscribe = (): void => {
+  //   if(this.subscription) {
+  //     this.ws.send(
+  //       JSON.stringify({
+  //         event: "unsubscribe",
+  //         pair: [`${this.config.base}/${this.config.quote}`],
+  //         subscription: {
+  //           name: "ohlc",
+  //         },
+  //       })
+  //     );
+  //   }
+  // };
+
 }

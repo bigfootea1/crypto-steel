@@ -13,11 +13,24 @@ let dirty = false;
 
 function updateTicker() {
   if (dirty && tickerData) {
-    const price = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: tickerData.quote,
-      maximumFractionDigits: 2,
-    }).format(tickerData.close);
+
+    let price;
+    
+    try {
+      price = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: tickerData.quote,
+        currencyDisplay: "narrowSymbol",
+        maximumFractionDigits: 2
+      }).format(tickerData.close);
+    }
+    catch(err) {
+      price = new Intl.NumberFormat("en-US", {
+        style: "decimal",
+        maximumFractionDigits: 2,
+      }).format(tickerData.close);
+    }
+
     document.getElementById("price").innerText = price;
     document.getElementById(
       "quote"
@@ -37,3 +50,5 @@ ipcRenderer.on("tickerupdate", (sender: any, data: any) => {
 ipcRenderer.on("heartbeat", () => {
     updateTicker();
 });
+
+ipcRenderer.send('update');

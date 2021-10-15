@@ -10,19 +10,20 @@
       http-equiv="X-Content-Security-Policy"
       content="default-src 'self'; script-src 'self'"
     />
-    <link href="src/assets/cryptofont/cryptofont.min.css" rel="stylesheet">
-    <link href="index.css" rel="stylesheet">
+    <link href="../assets/cryptofont/cryptofont.min.css" rel="stylesheet">
+    <link href="./index.css" rel="stylesheet">
   </head>
   <body>
-    <i id='logo' class="tickerLogo"></i>
     <div class='ticker'>
-      <div class='tickerSpacer'></div>
+      <div class='tickerSpacer'>
+        <i id='logo' class="tickerLogo"></i>
+      </div>
       <div class='tickerRow'>
         <div id='price' class='tickerText'></div>
         <div id='quote' class='tickerQuote'></div>
       </div>
     </div>
   <!-- You can also require other files to run in this process -->
-    <script type="module" src="./dist/renderer.js"></script>
+    <script type="module" src="../../app/renderer.js"></script>
   </body>
 </html>

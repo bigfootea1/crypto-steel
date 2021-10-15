@@ -46,23 +46,45 @@ export default class GameSense extends EventEmitter {
         developer: GAMESENSE_GAME_DEVELOPER,
       });
 
-      // await this.ax.post("/bind_game_event", {
-      //   game: GAMESENSE_GAME_NAME,
-      //   event: "SCREENUPDATE",
-      //   value_optional: true,
-      //   handlers: [
-      //     {
-      //       "device-type": "screened-128x40",
-      //       "mode": "screen",
-      //       "zone": "one",
-      //       "value_optional": true,
-      //       "datas": [{
-      //         "has-text": false,
-      //         "image-data": [...create(this.bitmapBuffer)]
-      //       }]
-      //     }          
-      //   ]
-      // });
+      await this.ax.post("/bind_game_event", {
+        game: GAMESENSE_GAME_NAME,
+        event: "UPTICK",
+        value_optional: true,
+        handlers: [
+          {
+            "device-type": "rgb-per-key-zones",
+            "mode": "color",
+            "zone": "all",
+            "color": {"red": 0, "green": 255, "blue": 0}
+          },
+          {
+            "device-type": "indicator",
+            "mode": "color",
+            "zone": "all",
+            "color": {"red": 0, "green": 255, "blue": 0}
+          }          
+        ]
+      });
+    
+      await this.ax.post("/bind_game_event", {
+        game: GAMESENSE_GAME_NAME,
+        event: "DNTICK",
+        value_optional: true,
+        handlers: [
+          {
+            "device-type": "rgb-per-key-zones",
+            "mode": "color",
+            "zone": "all",
+            "color": {"red": 255, "green": 0, "blue": 0}
+          },
+          {
+            "device-type": "indicator",
+            "mode": "color",
+            "zone": "all",
+            "color": {"red": 255, "green": 0, "blue": 0}
+          }          
+        ]
+      });
     
       this.heartbeatTimer = setInterval(
         this.heartbeat,
@@ -112,6 +134,16 @@ export default class GameSense extends EventEmitter {
       x: 0,
       y: 0
     } as Electron.Rectangle, nativeImage.createEmpty());
+  };
+
+  triggerEvent = async (event: string): Promise<void> => {
+    await this.ax.post("/game_event", {
+      game: GAMESENSE_GAME_NAME,
+      event,
+      data: {}
+    }).catch((err) => {
+      console.error(err);
+    });
   };
 
   async dispose(): Promise<void> {
