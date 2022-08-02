@@ -1,4 +1,5 @@
-import { app } from "electron";
+import { app } from 'electron';
+import log from './utils';
 import CryptoSteel from "./CryptoSteel";
 
 let cryptosteel: CryptoSteel;
@@ -7,13 +8,17 @@ let cryptosteel: CryptoSteel;
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on("window-all-closed", () => {
+  log.debug('window-all-closed');
   if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
 app.on("ready", async () => {
-  cryptosteel = new CryptoSteel();
-  await cryptosteel.initialize();
+    if(!cryptosteel) {
+      log.debug('on ready');
+      cryptosteel = new CryptoSteel();
+      await cryptosteel.initialize();
+    }
 });
 

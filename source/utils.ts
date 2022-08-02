@@ -1,5 +1,13 @@
 import path from 'path';
+import log from 'electron-log';
 import { nativeImage } from "electron";
+
+log.transports.file.level = 'debug';
+log.transports.console.level = 'debug';
+
+log.transports.file.getFile().clear();
+
+// log.catchErrors();
 
 export function getIcon( symbol?: string, scale?: number ): Electron.NativeImage {
     let icon;
@@ -22,3 +30,10 @@ export function getIcon( symbol?: string, scale?: number ): Electron.NativeImage
     return icon;
 }
 
+export function handleError( source: string, err: string | Error): void {
+    const error: Error = typeof err === 'string' ? new Error(err) : err;
+    log.error(source, error.message);
+    // dialog.showErrorBox(source, error.message);
+}
+
+export default log;

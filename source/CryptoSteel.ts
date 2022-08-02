@@ -1,14 +1,13 @@
-import { app, BrowserWindow, Menu, NativeImage, Tray, ipcMain } from "electron";
-import fs from "fs";
+import { app, BrowserWindow, Menu, NativeImage, Tray } from "electron";
 import _ from "lodash";
 import path from "path";
 import GameSense from "./GameSense";
-import Ticker from "./Ticker";
-import { getIcon } from "./utils";
+import Ticker, { TickerUpdate } from "./Ticker";
+import log, { getIcon } from "./utils";
 
 const DEBUG_OFFSCREEN_BROWSER = false;
-const DEVTOOLS_ENABLED = true || DEBUG_OFFSCREEN_BROWSER;
-const DEBUG_EFFECTS = true;
+const DEVTOOLS_ENABLED = false || DEBUG_OFFSCREEN_BROWSER;
+const DEBUG_EFFECTS = false;
 
 export default class CryptoSteel {
   private tray: Tray;
@@ -16,6 +15,7 @@ export default class CryptoSteel {
   private effects: GameSense;
 
   private renderWindow: BrowserWindow;
+  private lastUpdateTime = 0;
 
   constructor() {
 
@@ -33,10 +33,23 @@ export default class CryptoSteel {
     // });
   }
 
-  private onTickerUpdate = (data: any) => {
+  private onLightingUpdate = (data: TickerUpdate) => {
+    if((Date.now() - this.lastUpdateTime) > (60000)) {
+      if(data.delta > 0) {
+        this.effects.triggerEvent('UPTICK');
+      }
+      if(data.delta < 0) {
+        this.effects.triggerEvent('DNTICK');
+      }
+      this.lastUpdateTime = Date.now();
+    }
+  };
+
+  private onTickerUpdate = (data: TickerUpdate) => {
     if(this.renderWindow) {
       this.renderWindow.webContents.send('tickerupdate', data);
     }
+    this.onLightingUpdate(data);
   };
 
   private onHeartbeat = () => {
@@ -46,6 +59,8 @@ export default class CryptoSteel {
   };
 
   updateMenu(): void {
+
+    log.debug('CryptoSteel updateMenu');
 
     const quoteSubmenu = _.map(_.keys(this.ticker.coinMap), (q) => {
       return {
@@ -96,6 +111,7 @@ export default class CryptoSteel {
   }
 
   private createRenderWindow() {
+    log.debug('CryptoSteel createRenderWindow');
     // Create the browser window.
     this.renderWindow = new BrowserWindow({
       width: 128,
@@ -131,6 +147,7 @@ export default class CryptoSteel {
   }
   
   async initialize(): Promise<void> {
+    log.debug('CryptoSteel initialize');
     await this.ticker.initialize();
     await this.effects.initialize();
     this.updateMenu();
@@ -138,6 +155,7 @@ export default class CryptoSteel {
   }
 
   async dispose(): Promise<void> {
+    log.debug('CryptoSteel dispose');
     await this.ticker.dispose();
     await this.effects.dispose();
     this.tray.destroy();

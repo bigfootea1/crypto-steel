@@ -1,10 +1,11 @@
 import fs from "fs";
 import os from "os";
-import axios, { AxiosInstance } from "axios";
 import EventEmitter from "events";
-// import _ from "lodash";
+import got from 'got';
 import { create } from 'bitwise/buffer';
 import { nativeImage } from "electron";
+import _ from "lodash";
+import log, { handleError } from "./utils";
 
 const GAMESENSE_CONFIG_LOCATION =
   os.platform() === "win32"
@@ -16,134 +17,172 @@ const GAMESENSE_GAME_DESCRIPTION = "Cryptocurrency Ticker";
 const GAMESENSE_GAME_DEVELOPER = "Darren Schueller";
 
 export default class GameSense extends EventEmitter {
-  private ax: AxiosInstance;
+  private gsGot: typeof got;
   private heartbeatTimer: NodeJS.Timer;
   
   private bitmapBuffer: any;
+
+  // private kbdLedBuffer = _.fill(Array(132), [0,0,0]);
   
+  private connected = false;
+
   constructor(private width: number = 128, private height: number = 40) {
     super();
+
+    log.debug('GameSense constructor');
+
     this.bitmapBuffer = Buffer.alloc(width * height, 0);
   }
 
   async initialize(): Promise<void> {
     try {
+      log.debug('GameSense initialize');
+
       const cfg = JSON.parse(
         fs.readFileSync(GAMESENSE_CONFIG_LOCATION).toString()
       );
 
-      this.ax = axios.create({
-        baseURL: `http://${cfg.address}`,
-        maxContentLength: 1000000,
-        maxBodyLength: 1000000,
-        maxRedirects: 0,
-        headers: { "content-type": "application/json" },
-      });
+      this.gsGot = got.extend({ prefixUrl: `http://${cfg.address}`, headers: { "content-type": "application/json" } });
 
-      const ggInfo = await this.ax.post("/game_metadata", {
+      await this.gsGot.post("/game_metadata", { json: {
         game: GAMESENSE_GAME_NAME,
         game_display_name: GAMESENSE_GAME_DESCRIPTION,
         developer: GAMESENSE_GAME_DEVELOPER,
+      }
+      }).json().then(async (ggInfo: any) => {
+        await this.gsGot.post("/bind_game_event", { json: {
+          game: GAMESENSE_GAME_NAME,
+          event: "SCREENUPDATE",
+          value_optional: true,
+          handlers: [
+            {
+              "device-type": "screened-128x40",
+              "mode": "screen",
+              "zone": "one",
+              "value_optional": true,
+              "datas": [{
+                "has-text": false,
+                "image-data": [...create(this.bitmapBuffer)]
+              }]
+            }          
+          ]
+        }
+        });
+  
+        await this.gsGot.post("/bind_game_event", { json: {
+          game: GAMESENSE_GAME_NAME,
+          event: "UPTICK",
+          value_optional: true,
+          handlers: [
+            {
+              "device-type": "rgb-per-key-zones",
+              "mode": "color",
+              "zone": "all",
+              "color": {"red": 0, "green": 255, "blue": 0}
+            },
+            {
+              "device-type": "indicator",
+              "mode": "color",
+              "zone": "all",
+              "color": {"red": 0, "green": 255, "blue": 0}
+            }          
+          ]
+        }});
+  
+        await this.gsGot.post("/bind_game_event", { json: {
+          game: GAMESENSE_GAME_NAME,
+          event: "DNTICK",
+          value_optional: true,
+          handlers: [
+            {
+              "device-type": "rgb-per-key-zones",
+              "mode": "color",
+              "zone": "all",
+              "color": {"red": 255, "green": 0, "blue": 0}
+            },
+            {
+              "device-type": "indicator",
+              "mode": "color",
+              "zone": "all",
+              "color": {"red": 255, "green": 0, "blue": 0}
+            }          
+          ]
+        }});
+
+        this.connected = true;
+
+        this.heartbeatTimer = setInterval(
+          this.heartbeat,
+          ggInfo.data.game_metadata.deinitialize_timer_length_ms - 2000
+        );
+      })
+      .catch((err) => {
+        log.error(err);
+        this.connected = false;
       });
 
-      await this.ax.post("/bind_game_event", {
-        game: GAMESENSE_GAME_NAME,
-        event: "UPTICK",
-        value_optional: true,
-        handlers: [
-          {
-            "device-type": "rgb-per-key-zones",
-            "mode": "color",
-            "zone": "all",
-            "color": {"red": 0, "green": 255, "blue": 0}
-          },
-          {
-            "device-type": "indicator",
-            "mode": "color",
-            "zone": "all",
-            "color": {"red": 0, "green": 255, "blue": 0}
-          }          
-        ]
-      });
-    
-      await this.ax.post("/bind_game_event", {
-        game: GAMESENSE_GAME_NAME,
-        event: "DNTICK",
-        value_optional: true,
-        handlers: [
-          {
-            "device-type": "rgb-per-key-zones",
-            "mode": "color",
-            "zone": "all",
-            "color": {"red": 255, "green": 0, "blue": 0}
-          },
-          {
-            "device-type": "indicator",
-            "mode": "color",
-            "zone": "all",
-            "color": {"red": 255, "green": 0, "blue": 0}
-          }          
-        ]
-      });
-    
-      this.heartbeatTimer = setInterval(
-        this.heartbeat,
-        ggInfo.data.game_metadata.deinitialize_timer_length_ms - 2000
-      );
     } catch (err) {
-      console.error(err);
+      handleError('GameSense.initialize', err);
     }
   }
 
   heartbeat = (): void => {
-    this.ax.post("/game_heartbeat", {
-      game: GAMESENSE_GAME_NAME,
-    });
+    if(this.connected) {
+      this.gsGot.post("/game_heartbeat", { json: {
+        game: GAMESENSE_GAME_NAME,
+      }});
+    }
   };
 
   updateOLED = async (rect: Electron.Rectangle, img: Electron.NativeImage): Promise<void> => {
-    const bmp = img.getBitmap();
-    for(let y=rect.y; y < (rect.y+rect.height); y++) {
-      for(let x=rect.x; x < (rect.x+rect.width); x++) {
-        const srcIndex = y*(this.width*4) + (x*4);
-        const destIndex = (y*this.width) + x;
-        const srcVal = (bmp[srcIndex] + bmp[srcIndex+1] + bmp[srcIndex+2]) >= (128*3);
-        this.bitmapBuffer[destIndex] = srcVal ? 1 : 0;
-      }
-    }
-    
-    const evt = {
-      game: GAMESENSE_GAME_NAME,
-      event: 'SCREENUPDATE',
-      data: {
-        frame: {
-          'image-data-128x40': [...create(this.bitmapBuffer)]
+    if(this.connected) {
+      const bmp = img.getBitmap();
+      for(let y=rect.y; y < (rect.y+rect.height); y++) {
+        for(let x=rect.x; x < (rect.x+rect.width); x++) {
+          const srcIndex = y*(this.width*4) + (x*4);
+          const destIndex = (y*this.width) + x;
+          const srcVal = (bmp[srcIndex] + bmp[srcIndex+1] + bmp[srcIndex+2]) >= (128*3);
+          this.bitmapBuffer[destIndex] = srcVal ? 1 : 0;
         }
       }
-    };
-
-    await this.ax.post("/game_event", evt).catch((err) => {
-      console.error(err);
-    });
+      
+      const evt = {
+        game: GAMESENSE_GAME_NAME,
+        event: 'SCREENUPDATE',
+        data: {
+          frame: {
+            'image-data-128x40': [...create(this.bitmapBuffer)]
+          }
+        }
+      };
+  
+      await this.gsGot.post("/game_event", { json: evt }).catch((err) => {
+        handleError('updateOLED', err);
+      });
+    }
   };
 
   clearOLED = async (): Promise<void> => {
-    await this.updateOLED({
-      height: this.height,
-      width: this.width,
-      x: 0,
-      y: 0
-    } as Electron.Rectangle, nativeImage.createEmpty());
+    if(this.connected) {
+      await this.updateOLED({
+        height: this.height,
+        width: this.width,
+        x: 0,
+        y: 0
+      } as Electron.Rectangle, nativeImage.createEmpty());
+      }
   };
 
   triggerEvent = async (event: string): Promise<void> => {
-    await this.ax.post("/game_event", {
-      game: GAMESENSE_GAME_NAME,
-      event,
-      data: {}
-    }).catch((err) => {
-      console.error(err);
-    });
+    if(this.connected) {
+      await this.gsGot.post("/game_event", { json: {
+        game: GAMESENSE_GAME_NAME,
+        event,
+        data: {}
+      }}).catch((err) => {
+        handleError('triggerEvent', err);
+      });
+      }
   };
 
   async dispose(): Promise<void> {
@@ -151,12 +190,11 @@ export default class GameSense extends EventEmitter {
       clearInterval(this.heartbeatTimer);
     }
     await this.clearOLED();
-    await this.ax.post("/remove_game", {
-      game: GAMESENSE_GAME_NAME,
-    });
+    if(this.connected) {
+      await this.gsGot.post("/remove_game", { json: {
+        game: GAMESENSE_GAME_NAME,
+      }});
+    }
   }
 
-  async register(): Promise<void> {
-    console.log("register");
-  }
 }
