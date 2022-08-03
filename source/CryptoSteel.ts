@@ -27,10 +27,6 @@ export default class CryptoSteel {
 
     this.ticker.on('update', this.onTickerUpdate);
     this.ticker.on('heartbeat', this.onHeartbeat);
-
-    // ipcMain.on('update', () => {
-    //   console.log('update request from browser');
-    // });
   }
 
   private onLightingUpdate = (data: TickerUpdate) => {

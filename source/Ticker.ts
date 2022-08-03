@@ -1,13 +1,12 @@
-import path from 'path';
-import fs from 'fs';
+import path from "path";
+import fs from "fs";
 import { app, powerMonitor } from "electron";
-import got from 'got';
+import kracken from "./gotKracken";
 import EventEmitter from "events";
 import _ from "lodash";
-import { WebSocket, ErrorEvent, MessageEvent } from "ws";
-import log, { handleError } from './utils';
+import { WebSocket, MessageEvent } from "ws";
+import log, { handleError } from "./utils";
 
-const PUBLIC_REST_URL = "https://api.kraken.com/0/public/";
 const PUBLIC_WSS_URL = "wss://ws.kraken.com";
 
 type Config = {
@@ -34,12 +33,12 @@ type GenericKrackenEvent = {
 };
 
 export type TickerUpdate = {
-    open: number,
-    close: number,
-    diff: number,
-    delta: number,
-    base: string,
-    quote: string,
+  open: number;
+  close: number;
+  diff: number;
+  delta: number;
+  base: string;
+  quote: string;
 };
 
 export default class Ticker extends EventEmitter {
@@ -52,24 +51,46 @@ export default class Ticker extends EventEmitter {
 
   private lastClose: number;
 
+  private sentinelTimer: NodeJS.Timer;
+
   constructor() {
     super();
-
-    process.on("uncaughtException", function (error) {
-      handleError('Ticker constructor', error);
-    });
-
-    this.ws = new WebSocket(PUBLIC_WSS_URL);
-
-    this.ws.onopen = this.onOpen;
-    this.ws.onclose = this.onClose;
-    this.ws.onerror = this.onError;
-    this.ws.onmessage = this.onMessage;
 
     powerMonitor.on("suspend", () => this.onSuspend());
     powerMonitor.on("resume", () => this.onResume());
 
     this.loadConfig();
+
+    this.startSentinel();
+  }
+
+  private connect() {
+    this.disconnect();
+
+    this.ws = new WebSocket(PUBLIC_WSS_URL);
+    this.ws.onopen = this.onOpen;
+    this.ws.onclose = this.onClose;
+    this.ws.onerror = this.onError;
+    this.ws.onmessage = this.onMessage;
+  }
+
+  private disconnect() {
+    if (this.ws) {
+      this.ws.terminate();
+      this.ws = null;
+    }
+  }
+
+  private startSentinel() {
+    this.stopSentinel();
+    this.sentinelTimer = setInterval(() => this.sentinel(), 2000);
+  }
+
+  private stopSentinel() {
+    if(this.sentinelTimer) {
+      clearInterval(this.sentinelTimer);
+      this.sentinelTimer = null;
+    }
   }
 
   get pairs(): any[] {
@@ -101,12 +122,22 @@ export default class Ticker extends EventEmitter {
     return this.config.quote;
   }
 
+  private sentinel() {
+    if(!this.ws || (this.ws.readyState !== WebSocket.OPEN)) {
+      this.log(`WebSocket Connecting from ReadyState ${this.ws ? this.ws.readyState : 'NULL'}...`);
+      this.connect();
+    }
+  }
+
   private onSuspend = (): void => {
-    this.ws.close();
+    this.log("onSuspend");
+    this.disconnect();
+    this.stopSentinel();
   };
 
   private onResume = (): void => {
-    // this.ws.reconnect();
+    this.log("onResume");
+    this.startSentinel();
   };
 
   private parsePair(pairString: string): { base: string; quote: string } {
@@ -137,19 +168,18 @@ export default class Ticker extends EventEmitter {
   }
 
   async initialize(): Promise<void> {
-    const assets: any[] = await got(PUBLIC_REST_URL, {
+    const assets: any = await kracken("AssetPairs", {
       headers: {
         "Accept-Encoding": "gzip",
-      }
-    }
-      )
+      },
+    })
       .json<any[]>()
-      .catch((err) => {
-        handleError('Ticker.initialize', err);
+      .catch((err: Error): any[] => {
+        handleError("Ticker.initialize", err);
         return [];
       });
 
-    this._assets = _.map(assets, (a) => {
+    this._assets = _.map(assets.result, (a) => {
       const { base, quote } = this.parsePair(a.wsname);
       return {
         base,
@@ -162,14 +192,8 @@ export default class Ticker extends EventEmitter {
   }
 
   async dispose(): Promise<void> {
-    if (this.ws.readyState === WebSocket.OPEN) {
-      return new Promise((resolve) => {
-        this.ws.addEventListener("close", () => {
-          resolve();
-        });
-        this.ws.close(1000);
-      });
-    }
+    this.stopSentinel();
+    this.disconnect();
   }
 
   private onOpen = (): void => {
@@ -192,20 +216,20 @@ export default class Ticker extends EventEmitter {
     this.emit("closed");
   };
 
-  private onError = (err: ErrorEvent): void => {
-    this.log("WEBSOCKET ERROR: ", err);
-    this.emit("error", err);
+  private onError = (): void => {
+    this.disconnect();
   };
 
   private onMessage = (msg: MessageEvent): void => {
-    const msgData: OHLCUpdate | GenericKrackenEvent = JSON.parse(msg.data as string);
-
+    const msgData: OHLCUpdate | GenericKrackenEvent = JSON.parse(
+      msg.data as string
+    );
     if (msgData instanceof Array) {
       this.tickerUpdate(msgData);
     } else if ((msgData as any) instanceof Object) {
       _.invoke(this, msgData.event, msgData);
     } else {
-      handleError('Ticker.onMessage', "Unsupported response type.");
+      handleError("Ticker.onMessage", "Unsupported response type.");
     }
   };
 
@@ -215,7 +239,7 @@ export default class Ticker extends EventEmitter {
 
     const { base, quote } = this.parsePair(data[3]);
 
-    if(!this.lastClose) {
+    if (!this.lastClose) {
       this.lastClose = close;
     }
 
@@ -233,8 +257,8 @@ export default class Ticker extends EventEmitter {
 
     this.lastClose = close;
 
-    this.log('TICKER: ', newTicker);
-    this.emit("update", newTicker );
+    this.log("TICKER: ", newTicker);
+    this.emit("update", newTicker);
   };
 
   private heartbeat = (): void => {
@@ -264,15 +288,26 @@ export default class Ticker extends EventEmitter {
   };
 
   public subscribe = (base: string, quote: string): void => {
-  
+
+    if(this.ws && (this.ws.readyState === WebSocket.OPEN)) {
+      this.ws.send(
+        JSON.stringify({
+          event: "unsubscribe",
+          pair: [`${this.config.base}/${this.config.quote}`],
+          subscription: {
+            name: "ohlc",
+          },
+        })
+      );
+    }
+
     this.config.base = base;
     this.config.quote = quote;
 
-    if(!_.has(this.coinMap[this.config.quote], this.config.base)) {
-      if(_.has(this.coinMap[this.config.quote], 'BTC')) {
-        this.config.base = 'BTC';
-      }
-      else {
+    if (!_.has(this.coinMap[this.config.quote], this.config.base)) {
+      if (_.has(this.coinMap[this.config.quote], "BTC")) {
+        this.config.base = "BTC";
+      } else {
         const k = _.keys(this.coinMap[this.config.quote]);
         this.config.base = _.head(k);
       }
@@ -280,7 +315,16 @@ export default class Ticker extends EventEmitter {
 
     this.saveConfig();
 
-    // this.ws.reconnect();
+    if(this.ws && (this.ws.readyState === WebSocket.OPEN)) {
+      this.ws.send(
+        JSON.stringify({
+          event: "subscribe",
+          pair: [`${this.config.base}/${this.config.quote}`],
+          subscription: {
+            name: "ohlc",
+          },
+        })
+      );
+    }
   };
-
 }
