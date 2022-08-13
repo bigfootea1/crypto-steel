@@ -8,7 +8,7 @@ let cryptosteel: CryptoSteel;
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on("window-all-closed", () => {
-  log.debug('window-all-closed');
+  log.debug('App window-all-closed');
   if (process.platform !== "darwin") {
     app.quit();
   }
@@ -16,7 +16,7 @@ app.on("window-all-closed", () => {
 
 app.on("ready", async () => {
     if(!cryptosteel) {
-      log.debug('on ready');
+      log.debug('App READY');
       cryptosteel = new CryptoSteel();
       await cryptosteel.initialize();
     }

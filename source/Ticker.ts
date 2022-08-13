@@ -1,11 +1,21 @@
 import path from "path";
 import fs from "fs";
-import { app, powerMonitor } from "electron";
+import { app } from "electron";
 import kracken from "./gotKracken";
 import EventEmitter from "events";
-import _ from "lodash";
 import { WebSocket, MessageEvent } from "ws";
 import log, { handleError } from "./utils";
+
+import map from "lodash/map";
+import uniqBy from "lodash/uniqBy";
+import sortBy from "lodash/sortBy";
+import forEach from "lodash/forEach";
+import mapKeys from "lodash/mapKeys";
+import filter from "lodash/filter";
+import invoke from "lodash/invoke";
+import has from "lodash/has";
+import head from "lodash/head";
+import keys from "lodash/keys";
 
 const PUBLIC_WSS_URL = "wss://ws.kraken.com";
 
@@ -46,99 +56,135 @@ export default class Ticker extends EventEmitter {
 
   private _assets: any[];
   private subscription: any;
+  private _coinMap: any;
 
   private config: Config;
 
   private lastClose: number;
 
-  private sentinelTimer: NodeJS.Timer;
+  private reconnectTimer: NodeJS.Timeout;
+  private suspended: boolean;
 
   constructor() {
     super();
-
-    powerMonitor.on("suspend", () => this.onSuspend());
-    powerMonitor.on("resume", () => this.onResume());
-
     this.loadConfig();
-
-    this.startSentinel();
   }
 
-  private connect() {
-    this.disconnect();
+  public async loadAssets(): Promise<void> {
+    const assets: any = await kracken("AssetPairs", {
+      headers: {
+        "Accept-Encoding": "gzip",
+      },
+    })
+      .json<any[]>()
+      .catch((): any[] => []);
 
-    this.ws = new WebSocket(PUBLIC_WSS_URL);
-    this.ws.onopen = this.onOpen;
-    this.ws.onclose = this.onClose;
-    this.ws.onerror = this.onError;
-    this.ws.onmessage = this.onMessage;
+    this._assets = map(assets.result, (a) => {
+      const { base, quote } = this.parsePair(a.wsname);
+      return {
+        base,
+        quote,
+        pair: `${base}/${quote}`,
+      };
+    });
+
+    const quoteCoins = map(
+      sortBy(uniqBy(this._assets, "quote"), "quote"),
+      "quote"
+    );
+
+    this._coinMap = {};
+    forEach(
+      quoteCoins,
+      (quote) =>
+        (this._coinMap[quote] = mapKeys(
+          sortBy(filter(this._assets, { quote }), "base"),
+          "base"
+        ))
+    );
+  }
+
+  public get pairs(): any[] {
+    return this._assets;
+  }
+
+  public get coinMap(): any {
+    return this._coinMap;
+  }
+
+  public get base(): string {
+    return this.config.base;
+  }
+
+  public get quote(): string {
+    return this.config.quote;
+  }
+
+  public resume = async (): Promise<void> => {
+    this.suspended = false;
+    this.connect();
+  };
+
+  public async suspend(): Promise<void> {
+    this.suspended = true;
+    this.disconnect();
+  }
+
+  public subscribe = (base: string, quote: string): void => {
+    this.config.base = base;
+    this.config.quote = quote;
+
+    if (!has(this.coinMap[this.config.quote], this.config.base)) {
+      if (has(this.coinMap[this.config.quote], "BTC")) {
+        this.config.base = "BTC";
+      } else {
+        const k = keys(this.coinMap[this.config.quote]);
+        this.config.base = head(k);
+      }
+    }
+
+    this.saveConfig();
+
+    this.unsubscribe();
+
+    if(this.ws && (this.ws.readyState === WebSocket.OPEN)) {
+      this.ws.send(
+        JSON.stringify({
+          event: "subscribe",
+          pair: [`${this.config.base}/${this.config.quote}`],
+          subscription: {
+            name: "ohlc",
+          },
+        })
+      );
+    }
+  };
+
+  private async connect() {
+    if(!this.ws) {
+      log.info("Ticker.connect");
+
+      this.ws = new WebSocket(PUBLIC_WSS_URL);
+      this.ws.onopen = this.onOpen;
+      this.ws.onclose = this.onClose;
+      this.ws.onerror = this.onError;
+      this.ws.onmessage = this.onMessage;
+    }
   }
 
   private disconnect() {
     if (this.ws) {
+      log.info("Ticker.disconnect");
+      this.ws.close();
       this.ws.terminate();
       this.ws = null;
+
+      if(this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
     }
   }
-
-  private startSentinel() {
-    this.stopSentinel();
-    this.sentinelTimer = setInterval(() => this.sentinel(), 2000);
-  }
-
-  private stopSentinel() {
-    if(this.sentinelTimer) {
-      clearInterval(this.sentinelTimer);
-      this.sentinelTimer = null;
-    }
-  }
-
-  get pairs(): any[] {
-    return this._assets;
-  }
-
-  get coinMap(): any {
-    const val: any = {};
-    const quoteCoins = _.map(
-      _.sortBy(_.uniqBy(this._assets, "quote"), "quote"),
-      "quote"
-    );
-    _.forEach(
-      quoteCoins,
-      (quote) =>
-        (val[quote] = _.mapKeys(
-          _.sortBy(_.filter(this._assets, { quote }), "base"),
-          "base"
-        ))
-    );
-    return val;
-  }
-
-  get base(): string {
-    return this.config.base;
-  }
-
-  get quote(): string {
-    return this.config.quote;
-  }
-
-  private sentinel() {
-    if(!this.ws || (this.ws.readyState !== WebSocket.OPEN)) {
-      this.log(`WebSocket Connecting from ReadyState ${this.ws ? this.ws.readyState : 'NULL'}...`);
-      this.connect();
-    }
-  }
-
-  private onSuspend = (): void => {
-    this.log("onSuspend");
-    this.disconnect();
-    this.stopSentinel();
-  };
-
-  private onResume = (): void => {
-    this.log("onResume");
-    this.startSentinel();
-  };
 
   private parsePair(pairString: string): { base: string; quote: string } {
     const pair = pairString.split("/");
@@ -151,6 +197,7 @@ export default class Ticker extends EventEmitter {
   }
 
   private loadConfig(): void {
+    log.verbose("Ticker.loadConfig");
     const configPath = path.join(app.getPath("userData"), ".config");
     if (!fs.existsSync(configPath)) {
       fs.writeFileSync(configPath, JSON.stringify(defaultConfig));
@@ -159,65 +206,42 @@ export default class Ticker extends EventEmitter {
   }
 
   private saveConfig() {
+    log.verbose("Ticker.saveConfig");
     const configPath = path.join(app.getPath("userData"), ".config");
     fs.writeFileSync(configPath, JSON.stringify(this.config));
   }
 
-  private log(...args: any[]) {
-    log.silly(...args);
-  }
+  private retryConnection() {
+    if(this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
 
-  async initialize(): Promise<void> {
-    const assets: any = await kracken("AssetPairs", {
-      headers: {
-        "Accept-Encoding": "gzip",
-      },
-    })
-      .json<any[]>()
-      .catch((err: Error): any[] => {
-        handleError("Ticker.initialize", err);
-        return [];
-      });
-
-    this._assets = _.map(assets.result, (a) => {
-      const { base, quote } = this.parsePair(a.wsname);
-      return {
-        base,
-        quote,
-        pair: `${base}/${quote}`,
-      };
-    });
-
-    this.subscribe(this.config.base, this.config.quote);
-  }
-
-  async dispose(): Promise<void> {
-    this.stopSentinel();
-    this.disconnect();
+    if(!this.suspended) {
+      log.debug('...Scheduling connection retry');
+      this.reconnectTimer = setTimeout(() => {
+        log.debug('...connection retry');
+        this.connect();
+      }, 2000);
+    }
   }
 
   private onOpen = (): void => {
-    this.log("OPENED: ", this.config);
+    log.info(`Ticker.onOpen ${JSON.stringify(this.config)}`);
     this.emit("connected");
-
-    this.ws.send(
-      JSON.stringify({
-        event: "subscribe",
-        pair: [`${this.config.base}/${this.config.quote}`],
-        subscription: {
-          name: "ohlc",
-        },
-      })
-    );
   };
 
   private onClose = (evt: any): void => {
-    this.log("WEBSOCKET CLOSED: ", evt);
+    log.info(`Ticker.onClose ${JSON.stringify(evt)}`);
     this.emit("closed");
+    this.subscription = undefined;
+    this.ws = null;
+
+    this.retryConnection();
   };
 
-  private onError = (): void => {
-    this.disconnect();
+  private onError = (err: any): void => {
+    log.info(`Ticker.onError ${JSON.stringify(err)}`);
   };
 
   private onMessage = (msg: MessageEvent): void => {
@@ -227,7 +251,7 @@ export default class Ticker extends EventEmitter {
     if (msgData instanceof Array) {
       this.tickerUpdate(msgData);
     } else if ((msgData as any) instanceof Object) {
-      _.invoke(this, msgData.event, msgData);
+      invoke(this, msgData.event, msgData);
     } else {
       handleError("Ticker.onMessage", "Unsupported response type.");
     }
@@ -257,7 +281,7 @@ export default class Ticker extends EventEmitter {
 
     this.lastClose = close;
 
-    this.log("TICKER: ", newTicker);
+    log.debug("TICKER: ", newTicker);
     this.emit("update", newTicker);
   };
 
@@ -266,17 +290,20 @@ export default class Ticker extends EventEmitter {
   };
 
   private systemStatus = (data: any): void => {
-    this.log("STATUS: ", data);
+    log.info("STATUS: ", data);
     this.emit("status", data);
+    if(data.status === 'online') {
+      this.subscribe(this.config.base, this.config.quote);
+    }
   };
 
   private subscriptionStatus = (data: any): void => {
     if (data.status === "subscribed") {
-      this.log("SUBSCRIBED: ", data);
+      log.info("SUBSCRIBED: ", data);
       this.subscription = data;
     }
     if (data.status === "unsubscribed") {
-      this.log("UNSUBSCRIBED: ", data);
+      log.info("UNSUBSCRIBED: ", data);
       if (
         data.channelName === this.subscription.channelName &&
         data.pair === this.subscription.pair
@@ -287,44 +314,19 @@ export default class Ticker extends EventEmitter {
     this.emit(data.status, data);
   };
 
-  public subscribe = (base: string, quote: string): void => {
-
-    if(this.ws && (this.ws.readyState === WebSocket.OPEN)) {
+  private unsubscribe(): void {
+    if(this.ws 
+      && (this.ws.readyState === WebSocket.OPEN)
+      && this.subscription
+      && this.subscription.channelID
+      ) {
       this.ws.send(
         JSON.stringify({
           event: "unsubscribe",
-          pair: [`${this.config.base}/${this.config.quote}`],
-          subscription: {
-            name: "ohlc",
-          },
+          channelID: this.subscription.channelID,
         })
       );
     }
+  }
 
-    this.config.base = base;
-    this.config.quote = quote;
-
-    if (!_.has(this.coinMap[this.config.quote], this.config.base)) {
-      if (_.has(this.coinMap[this.config.quote], "BTC")) {
-        this.config.base = "BTC";
-      } else {
-        const k = _.keys(this.coinMap[this.config.quote]);
-        this.config.base = _.head(k);
-      }
-    }
-
-    this.saveConfig();
-
-    if(this.ws && (this.ws.readyState === WebSocket.OPEN)) {
-      this.ws.send(
-        JSON.stringify({
-          event: "subscribe",
-          pair: [`${this.config.base}/${this.config.quote}`],
-          subscription: {
-            name: "ohlc",
-          },
-        })
-      );
-    }
-  };
 }

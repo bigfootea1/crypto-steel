@@ -2,7 +2,7 @@
   "name": "crypto-steel",
   "version": "1.2.0",
   "description": "Crypto Ticker for your SteelSeries gear",
-  "main": "app/main.js",
+  "main": "./app/main.js",
   "scripts": {
     "clean": "rimraf app dist",
     "superclean": "npm run clean && rimraf package-lock.json node_modules",
@@ -10,14 +10,15 @@
     "watch": "tsc -w",
     "lint": "eslint -c .eslintrc --ext .ts ./src",
     "start": "npm run build && electron ./app/main.js",
-    "pack": "npm run clean && npm run build && electron-builder --dir",
-    "dist": "npm run clean && npm run build && electron-builder"
+    "pack": "npm run clean && npm run build",
+    "dist": "npm run pack && electron-builder"
   },
   "repository": "",
   "keywords": [],
   "author": "Darren Schueller",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@types/electron": "^1.6.10",
     "@types/lodash": "^4.14.182",
     "@types/node": "^18.6.3",
     "@types/ws": "^8.5.3",
@@ -25,6 +26,7 @@
     "@typescript-eslint/parser": "^4.33.0",
     "electron": "^20.0.0",
     "electron-builder": "^23.3.3",
+    "esbuild": "^0.14.53",
     "eslint": "^7.32.0",
     "eslint-plugin-import": "^2.26.0",
     "typescript": "^4.7.4"
@@ -40,8 +42,9 @@
   "build": {
     "appId": "bigfoot.crypto-steel",
     "files": [
-      "!**/*.map",
-      "!**/source/*",
+      "!static/assets/cryptofont/fonts/cryptofont.svg",
+      "!app/*.map",
+      "!source/**/*",
       "!.vscode",
       "!workspace.code-workspace",
       "!tsconfig.json",
