@@ -1,6 +1,6 @@
 {
   "name": "crypto-steel",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Crypto Ticker for your SteelSeries gear",
   "main": "./app/main.js",
   "scripts": {
@@ -10,38 +10,41 @@
     "watch": "tsc -w",
     "lint": "eslint -c .eslintrc --ext .ts ./src",
     "start": "npm run build && electron ./app/main.js",
-    "pack": "npm run clean && npm run build && electron-builder --dir",
-    "dist": "npm run clean && npm run build && electron-builder"    
+    "pack": "npm run clean && npm run build",
+    "dist": "npm run pack && electron-builder"
   },
   "repository": "",
   "keywords": [],
-  "author": "GitHub",
-  "license": "CC0-1.0",
+  "author": "Darren Schueller",
+  "license": "Apache-2.0",
   "devDependencies": {
-    "@types/lodash": "^4.14.173",
-    "@types/ws": "^7.4.7",
-    "@typescript-eslint/eslint-plugin": "^4.31.2",
+    "@types/electron": "^1.6.10",
+    "@types/lodash": "^4.14.182",
+    "@types/node": "^18.6.3",
+    "@types/ws": "^8.5.3",
+    "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
-    "cryptocurrency-icons": "^0.18.0",
-    "cryptofont": "^0.1.1",
-    "electron": "^15.1.1",
-    "electron-builder": "^22.13.1",
+    "electron": "^20.0.0",
+    "electron-builder": "^23.3.3",
+    "esbuild": "^0.14.53",
     "eslint": "^7.32.0",
-    "eslint-plugin-import": "^2.24.2",
-    "typescript": "^4.4.3"
+    "eslint-plugin-import": "^2.26.0",
+    "typescript": "^4.7.4"
   },
   "dependencies": {
-    "axios": "^0.21.4",
     "bitwise": "^2.1.0",
+    "cryptofont": "^0.1.1",
+    "electron-log": "^4.4.8",
+    "got": "^11.8.5",
     "lodash": "^4.17.21",
-    "reconnecting-websocket": "^4.4.0",
-    "ws": "^8.2.2"
+    "ws": "^8.8.1"
   },
   "build": {
     "appId": "bigfoot.crypto-steel",
     "files": [
-      "!**/*.map",
-      "!**/source/*",
+      "!static/assets/cryptofont/fonts/cryptofont.svg",
+      "!app/*.map",
+      "!source/**/*",
       "!.vscode",
       "!workspace.code-workspace",
       "!tsconfig.json",
@@ -53,8 +56,11 @@
       "category": "public.app-category.productivity"
     },
     "win": {
-			"verifyUpdateCodeSignature": false,
-			"icon": "build/icon.png"
-		}    
+      "verifyUpdateCodeSignature": false,
+      "icon": "build/icon.png"
+    }
+  },
+  "overrides": {
+    "got": "^11.8.5"
   }
 }
