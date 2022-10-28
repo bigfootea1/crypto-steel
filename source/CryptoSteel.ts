@@ -86,17 +86,13 @@ export default class CryptoSteel {
     const contextMenu = Menu.buildFromTemplate(menuItemList);
 
     this.tray.setContextMenu(contextMenu);
-
     this.tray.setImage(getIcon(this.ticker.base));
   }
 
   async initialize(): Promise<void> {
-    log.info('CryptoSteel initialize');
-
+    log.info('CryptoSteel.initialize');
     await this.ticker.loadAssets();
-
     this.updateMenu();
-
     await this.effects.resume();
     await this.ticker.resume();
   }

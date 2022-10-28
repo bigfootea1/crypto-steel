@@ -6,49 +6,50 @@
 // needed in the renderer process.
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { ipcRenderer } = require("electron");
+// const { ipcRenderer } = require("electron");
 
-let tickerData: any;
-let dirty = false;
+// let tickerData: any;
+// let dirty = false;
 
-function updateTicker() {
-  if (dirty && tickerData) {
+// function updateTicker() {
+//   if (dirty && tickerData) {
+//     let price;
 
-    let price;
-    
-    try {
-      price = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: tickerData.quote,
-        currencyDisplay: "narrowSymbol",
-        maximumFractionDigits: 2
-      }).format(tickerData.close);
-    }
-    catch(err) {
-      price = new Intl.NumberFormat("en-US", {
-        style: "decimal",
-        maximumFractionDigits: 2,
-      }).format(tickerData.close);
-    }
+//     try {
+//       price = new Intl.NumberFormat("en-US", {
+//         style: "currency",
+//         currency: tickerData.quote,
+//         currencyDisplay: "narrowSymbol",
+//         maximumFractionDigits: 2,
+//       }).format(tickerData.close);
+//     } catch (err) {
+//       price = new Intl.NumberFormat("en-US", {
+//         style: "decimal",
+//         maximumFractionDigits: 2,
+//       }).format(tickerData.close);
+//     }
 
-    document.getElementById("price").innerText = price;
-    document.getElementById(
-      "quote"
-    ).innerText = `${tickerData.base} / ${tickerData.quote}`;
-    document.getElementById(
-      "logo"
-    ).className = `tickerLogo cf cf-${tickerData.base.toLowerCase()}`;
-    dirty = false;
-  }
-}
+//     document.getElementById("price").innerText = price;
+//     document.getElementById(
+//       "quote"
+//     ).innerText = `${tickerData.base} / ${tickerData.quote}`;
+//     document.getElementById(
+//       "logo"
+//     ).className = `tickerLogo cf cf-${tickerData.base.toLowerCase()}`;
+//     dirty = false;
+//   }
+// }
 
-ipcRenderer.on("tickerupdate", (sender: any, data: any) => {
-  tickerData = data;
-  dirty = true;
-});
+// ipcRenderer.on("tickerupdate", (sender: any, data: any) => {
+//   tickerData = data;
+//   dirty = true;
+// });
 
-ipcRenderer.on("heartbeat", () => {
-    updateTicker();
-});
+// ipcRenderer.on("heartbeat", () => {
+//   window.tickerAPI.getCurrentData();
+//   updateTicker();
+// });
 
-ipcRenderer.send('update');
+// ipcRenderer.send("update");
+
+window.tickerAPI.getCurrentData();

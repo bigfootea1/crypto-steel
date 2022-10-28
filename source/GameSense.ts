@@ -1,4 +1,4 @@
-import path from 'path';
+import path from "path";
 import EventEmitter from "events";
 import gamesense from "./gotGamesense";
 import { create } from "bitwise/buffer";
@@ -10,7 +10,7 @@ const GAMESENSE_GAME_NAME = "CRYPTO-STEEL";
 const GAMESENSE_GAME_DESCRIPTION = "Cryptocurrency Ticker";
 const GAMESENSE_GAME_DEVELOPER = "Darren Schueller";
 
-const DEBUG_OFFSCREEN_BROWSER = false;
+const DEBUG_OFFSCREEN_BROWSER = true;
 const DEVTOOLS_ENABLED = false || DEBUG_OFFSCREEN_BROWSER;
 
 export default class GameSense extends EventEmitter {
@@ -32,7 +32,6 @@ export default class GameSense extends EventEmitter {
   async resume(): Promise<void> {
     log.info("GameSense.resume");
     try {
-
       const ggInfo: any = await gamesense("game_metadata", {
         json: {
           game: GAMESENSE_GAME_NAME,
@@ -119,7 +118,6 @@ export default class GameSense extends EventEmitter {
   async suspend(): Promise<void> {
     log.info("GameSense.suspend");
     try {
-
       if (this.heartbeatTimer) {
         clearInterval(this.heartbeatTimer);
         this.heartbeatTimer = null;
@@ -155,60 +153,65 @@ export default class GameSense extends EventEmitter {
   };
 
   private createRenderWindow() {
-    log.verbose('CryptoSteel.createRenderWindow');
+    log.verbose("GameSense.createRenderWindow");
     // Create the browser window.
     this.renderWindow = new BrowserWindow({
-      width: 128,
-      height: 40,
-      minWidth: 128,
-      minHeight: 40,
+      useContentSize: true,
+      width: this.width,
+      height: this.height,
       minimizable: false,
       maximizable: false,
-      transparent: true,
+      transparent: !DEBUG_OFFSCREEN_BROWSER,
       alwaysOnTop: DEBUG_OFFSCREEN_BROWSER,
       show: DEBUG_OFFSCREEN_BROWSER,
       frame: false,
-      resizable: true,
+      resizable: DEBUG_OFFSCREEN_BROWSER,
+      backgroundColor: DEBUG_OFFSCREEN_BROWSER ? 'black' : undefined,
       webPreferences: {
-        offscreen: !DEBUG_OFFSCREEN_BROWSER, 
+        offscreen: !DEBUG_OFFSCREEN_BROWSER,
+        textAreasAreResizable: false,
         nodeIntegration: true,
-        contextIsolation: false,
-        preload: path.join(__dirname, 'preload.js') 
-      } 
+        contextIsolation: true,
+        zoomFactor: 1.0,
+        preload: path.join(__dirname, "preload.js"),
+      },
     });
 
-    this.renderWindow.webContents.on("paint", (event, dirty, image: NativeImage) => {
-      this.updateOLED(dirty, image);
-    });
+    this.renderWindow.webContents.on(
+      "paint",
+      (event, dirty, image: NativeImage) => {
+        this.updateOLED(dirty, image);
+      }
+    );
 
-    this.renderWindow.webContents.setFrameRate(10);
-
-    if(DEBUG_OFFSCREEN_BROWSER || DEVTOOLS_ENABLED) {
-      this.renderWindow.webContents.openDevTools();
-    }
+    // this.renderWindow.webContents.setFrameRate(60);
 
     this.renderWindow.loadFile(path.join(__dirname, "../static/html/index.html"));
+
+    if (DEBUG_OFFSCREEN_BROWSER || DEVTOOLS_ENABLED) {
+      this.renderWindow.webContents.openDevTools();
+    }
   }
 
   onTickerUpdate = (data: TickerUpdate): void => {
-    if(this.renderWindow) {
-      this.renderWindow.webContents.send('tickerupdate', data);
+    if (this.renderWindow) {
+      this.renderWindow.webContents.send("tickerupdate", data);
     }
 
-    if((Date.now() - this.lastUpdateTime) > (60000)) {
-      if(data.delta > 0) {
-        this.triggerEvent('UPTICK');
+    if (Date.now() - this.lastUpdateTime > 60000) {
+      if (data.delta > 0) {
+        this.triggerEvent("UPTICK");
       }
-      if(data.delta < 0) {
-        this.triggerEvent('DNTICK');
+      if (data.delta < 0) {
+        this.triggerEvent("DNTICK");
       }
       this.lastUpdateTime = Date.now();
     }
   };
 
   onHeartbeat = (): void => {
-    if(this.renderWindow) {
-      this.renderWindow.webContents.send('heartbeat');
+    if (this.renderWindow) {
+      this.renderWindow.webContents.send("heartbeat");
     }
   };
 
@@ -225,6 +228,7 @@ export default class GameSense extends EventEmitter {
     img: Electron.NativeImage
   ): Promise<void> => {
     const bmp = img.getBitmap();
+
     for (let y = rect.y; y < rect.y + rect.height; y++) {
       for (let x = rect.x; x < rect.x + rect.width; x++) {
         const srcIndex = y * (this.width * 4) + x * 4;
@@ -261,5 +265,4 @@ export default class GameSense extends EventEmitter {
       nativeImage.createEmpty()
     );
   };
-
 }
