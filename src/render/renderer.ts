@@ -52,4 +52,8 @@
 
 // ipcRenderer.send("update");
 
-window.tickerAPI.getCurrentData();
+export function getTickerData(): void {
+    console.log('Getting ticker data...');
+    console.log(window.tickerAPI.getCurrentData());
+}
+

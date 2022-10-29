@@ -1,17 +1,16 @@
 {
   "compilerOptions": {
+    "jsx": "react",
     "module": "commonjs",
-    "noImplicitAny": true,
-		"target": "ES2020",
-    "esModuleInterop": true,
-    "sourceMap": true,
+    "target": "ES6",
+    // "downlevelIteration": true,
+    "noImplicitAny": false,
     "outDir": "app",
-    "baseUrl": ".",
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "paths": {
-      "*": ["node_modules/*"]
-    },
-  },
-  "include": [ "source/**/*", "renderer.d.ts" ]    
+    "typeRoots": ["./node_modules/@types"],
+    // "isolatedModules": true,
+    "esModuleInterop": true,
+    "sourceMaps": true
+  }
 }

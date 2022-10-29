@@ -3,6 +3,8 @@ import { Autoplay } from "swiper";
 import { Component } from "react";
 import React from "react";
 
+import { getTickerData } from "./renderer";
+
 import "./ticker.css";
 import "swiper/swiper.min.css";
 
@@ -45,6 +47,7 @@ export default class Ticker extends Component {
         width={128}
         height={40}
         speed={1900}
+        onSlideChange={() => getTickerData()}
       >
         <SwiperSlide>
           <Coin price={20000} quote="USD" base="BTC" />

@@ -10,8 +10,8 @@ const GAMESENSE_GAME_NAME = "CRYPTO-STEEL";
 const GAMESENSE_GAME_DESCRIPTION = "Cryptocurrency Ticker";
 const GAMESENSE_GAME_DEVELOPER = "Darren Schueller";
 
-const DEBUG_OFFSCREEN_BROWSER = true;
-const DEVTOOLS_ENABLED = false || DEBUG_OFFSCREEN_BROWSER;
+const DEBUG_OFFSCREEN_BROWSER = false;
+const DEVTOOLS_ENABLED = true || DEBUG_OFFSCREEN_BROWSER;
 
 export default class GameSense extends EventEmitter {
   private heartbeatTimer: NodeJS.Timer;
@@ -168,12 +168,13 @@ export default class GameSense extends EventEmitter {
       resizable: DEBUG_OFFSCREEN_BROWSER,
       backgroundColor: DEBUG_OFFSCREEN_BROWSER ? 'black' : undefined,
       webPreferences: {
+        webSecurity: false,
         offscreen: !DEBUG_OFFSCREEN_BROWSER,
         textAreasAreResizable: false,
         nodeIntegration: true,
         contextIsolation: true,
         zoomFactor: 1.0,
-        preload: path.join(__dirname, "preload.js"),
+        preload: path.join(__dirname, "..", "..", "app", "preload", "preload.js"),
       },
     });
 
@@ -186,7 +187,11 @@ export default class GameSense extends EventEmitter {
 
     // this.renderWindow.webContents.setFrameRate(60);
 
-    this.renderWindow.loadFile(path.join(__dirname, "../static/html/index.html"));
+    const rendererPage = path.join(__dirname, '..', '..', 'app', "render", "index.html");
+
+    log.info(`rendererPage = ${rendererPage}`);
+
+    this.renderWindow.loadFile(rendererPage);
 
     if (DEBUG_OFFSCREEN_BROWSER || DEVTOOLS_ENABLED) {
       this.renderWindow.webContents.openDevTools();

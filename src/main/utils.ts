@@ -10,11 +10,13 @@ log.transports.file.getFile().clear();
 export function getIcon( symbol?: string, scale?: number ): Electron.NativeImage {
     let icon;
     if(symbol) {
-        icon = nativeImage.createFromPath(path.join(__dirname, '..', 'static', 'assets', 'color', `${symbol.toLowerCase()}.png`));        
+        const filePath = path.join(__dirname, '..', '..', 'assets', `${symbol.toLowerCase()}.png`);
+        log.info(filePath);
+        icon = nativeImage.createFromPath(filePath);        
     }
 
     if(!icon || icon.isEmpty()) {
-        icon = nativeImage.createFromPath(path.join(__dirname, '..', 'static', 'assets', 'color', 'generic.png'));
+        icon = nativeImage.createFromPath(path.join(__dirname, '..', '..', 'assets', 'generic.png'));
     }
 
     if(scale) {
