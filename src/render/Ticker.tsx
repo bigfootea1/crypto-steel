@@ -34,7 +34,7 @@ function Coin({ price, base, quote }) {
 }
 
 export default class Ticker extends Component {
-  render() {
+  render(): JSX.Element {
     return (
       <Swiper
         modules={[Autoplay]}

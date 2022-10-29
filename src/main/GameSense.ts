@@ -154,6 +154,7 @@ export default class GameSense extends EventEmitter {
 
   private createRenderWindow() {
     log.verbose("GameSense.createRenderWindow");
+
     // Create the browser window.
     this.renderWindow = new BrowserWindow({
       useContentSize: true,
@@ -161,14 +162,15 @@ export default class GameSense extends EventEmitter {
       height: this.height,
       minimizable: false,
       maximizable: false,
-      transparent: !DEBUG_OFFSCREEN_BROWSER,
+      // transparent: !DEBUG_OFFSCREEN_BROWSER,
+      transparent: false,
       alwaysOnTop: DEBUG_OFFSCREEN_BROWSER,
       show: DEBUG_OFFSCREEN_BROWSER,
       frame: false,
       resizable: DEBUG_OFFSCREEN_BROWSER,
-      backgroundColor: DEBUG_OFFSCREEN_BROWSER ? 'black' : undefined,
+      backgroundColor: 'black',
+      // backgroundColor: DEBUG_OFFSCREEN_BROWSER ? 'black' : undefined,
       webPreferences: {
-        webSecurity: false,
         offscreen: !DEBUG_OFFSCREEN_BROWSER,
         textAreasAreResizable: false,
         nodeIntegration: true,
