@@ -3,16 +3,6 @@
   "version": "2.0.0",
   "description": "Crypto Ticker for your SteelSeries gear",
   "main": "app/main.js",
-  "scripts": {
-    "clean": "rimraf app dist/**/* .parcel-cache",
-    "superclean": "npm run clean && rimraf package-lock.json node_modules",
-    "build": "parcel build",
-    "watch": "tsc -w",
-    "lint": "eslint -c .eslintrc --ext .ts ./src",
-    "start": "npm run build && electron ./app/main.js",
-    "pack": "npm run clean && npm run build",
-    "dist": "npm run pack && electron-builder"
-  },
   "repository": "",
   "keywords": [],
   "author": "Darren Schueller",
@@ -82,5 +72,15 @@
       "source": "src/preload/preload.ts",
       "distDir": "./app"
     }
+  },
+  "scripts": {
+    "clean": "rimraf app dist/**/* .parcel-cache",
+    "superclean": "npm run clean && rimraf package-lock.json node_modules",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "lint": "eslint -c .eslintrc --ext .ts ./src",
+    "start": "npm run build && electron ./app/main.js",
+    "pack": "npm run clean && parcel build",
+    "dist": "npm run pack && electron-builder"
   }
 }

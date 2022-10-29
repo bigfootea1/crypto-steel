@@ -11,6 +11,6 @@
     "typeRoots": ["./node_modules/@types"],
     // "isolatedModules": true,
     "esModuleInterop": true,
-    "sourceMaps": true
+    "sourceMap": true
   }
 }
