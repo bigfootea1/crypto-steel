@@ -11,7 +11,7 @@ const GAMESENSE_GAME_DESCRIPTION = "Cryptocurrency Ticker";
 const GAMESENSE_GAME_DEVELOPER = "Darren Schueller";
 
 const DEBUG_OFFSCREEN_BROWSER = false;
-const DEVTOOLS_ENABLED = true || DEBUG_OFFSCREEN_BROWSER;
+const DEVTOOLS_ENABLED = false || DEBUG_OFFSCREEN_BROWSER;
 
 export default class GameSense extends EventEmitter {
   private heartbeatTimer: NodeJS.Timer;

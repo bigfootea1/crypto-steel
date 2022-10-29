@@ -76,7 +76,7 @@
   "scripts": {
     "clean": "rimraf app dist/**/* .parcel-cache",
     "superclean": "npm run clean && rimraf package-lock.json node_modules",
-    "build": "tsc",
+    "build": "tsc && parcel build --target renderer",
     "watch": "tsc -w",
     "lint": "eslint -c .eslintrc --ext .ts ./src",
     "start": "npm run build && electron ./app/main.js",
