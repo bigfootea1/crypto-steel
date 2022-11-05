@@ -5,9 +5,6 @@
 // Use preload.js to selectively enable features
 // needed in the renderer process.
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-// const { ipcRenderer } = require("electron");
-
 // let tickerData: any;
 // let dirty = false;
 
@@ -52,8 +49,5 @@
 
 // ipcRenderer.send("update");
 
-export function getTickerData(): void {
-    console.log('Getting ticker data...');
-    console.log(window.tickerAPI.getCurrentData());
-}
+// import { ipcRenderer } from 'electron';
 

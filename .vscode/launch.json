@@ -16,7 +16,7 @@
             "args" : ["app/main/main.js"],
             "outputCapture": "std",
             "sourceMaps": true,
-            "preLaunchTask": "npm: build"
+            // "preLaunchTask": "npm: build"
           }
     ]
 }

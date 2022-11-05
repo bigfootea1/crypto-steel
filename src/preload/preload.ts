@@ -1,12 +1,7 @@
-// All of the Node.js APIs are available in the preload process.
-// It has the same sandbox as a Chrome extension.
+import { contextBridge, ipcRenderer } from 'electron';
 
-// preload with contextIsolation enabled
-import { contextBridge } from 'electron';
-
-contextBridge.exposeInMainWorld('tickerAPI', {
-  getCurrentData: () => {
-    console.log('getCurrentData');
-    return "FOOBAR!";
+contextBridge.exposeInMainWorld('ticker', {
+  onTickerUpdate: (callback: (tickerData: any) => void) => { 
+    ipcRenderer.on('ticker-update', (evt, data) => callback(data));
   }
 });

@@ -1,12 +1,9 @@
-import { app } from 'electron';
-import log from './utils';
-import CryptoSteel from "./CryptoSteel";
+import { app, powerMonitor } from 'electron';
+import App from './App';
+import Ticker from './Ticker';
+import log from "./utils";
 
-let cryptosteel: CryptoSteel;
-
-export function getMainInstance(): CryptoSteel {
-  return cryptosteel;
-}
+app.setAppLogsPath();
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -19,10 +16,40 @@ app.on("window-all-closed", () => {
 });
 
 app.on("ready", async () => {
-    if(!cryptosteel) {
-      log.debug('App READY');
-      cryptosteel = new CryptoSteel();
-      await cryptosteel.initialize();
-    }
+    log.debug('App READY');
+
+    const ticker = new Ticker();
+    await ticker.loadAssets();
+
+    const theApp = new App(ticker.coinMap);
+
+    ticker.on("config", (cfg) => {
+      log.info('config: ', cfg);
+    });
+    
+    // ticker.on("update", (cfg) => {
+    //   log.info('update: ', cfg);
+    // });
+
+    ticker.on("status-change", (event: any) => {
+      if(event.status === 'online') {
+        ticker.subscribe(theApp.base, theApp.quote);
+      }
+    });
+
+    theApp.on("config-change", (config) => {
+      ticker.subscribe(config.base, config.quote);
+    });
+
+    powerMonitor.on("suspend", async () => {
+      log.info('CryptoSteel.suspend');
+      await ticker.suspend();
+    });
+    
+    powerMonitor.on("resume", async () => {
+      await ticker.resume();
+    });
+
+    await ticker.resume();
 });
 

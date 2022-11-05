@@ -10,8 +10,10 @@ const GAMESENSE_GAME_NAME = "CRYPTO-STEEL";
 const GAMESENSE_GAME_DESCRIPTION = "Cryptocurrency Ticker";
 const GAMESENSE_GAME_DEVELOPER = "Darren Schueller";
 
-const DEBUG_OFFSCREEN_BROWSER = false;
+const DEBUG_OFFSCREEN_BROWSER = true;
 const DEVTOOLS_ENABLED = false || DEBUG_OFFSCREEN_BROWSER;
+
+const ZOOM_FACTOR = DEBUG_OFFSCREEN_BROWSER ? 4 : 1;
 
 export default class GameSense extends EventEmitter {
   private heartbeatTimer: NodeJS.Timer;
@@ -158,18 +160,16 @@ export default class GameSense extends EventEmitter {
     // Create the browser window.
     this.renderWindow = new BrowserWindow({
       useContentSize: true,
-      width: this.width,
-      height: this.height,
+      width: this.width * ZOOM_FACTOR,
+      height: this.height * ZOOM_FACTOR,
       minimizable: false,
       maximizable: false,
-      // transparent: !DEBUG_OFFSCREEN_BROWSER,
       transparent: false,
       alwaysOnTop: DEBUG_OFFSCREEN_BROWSER,
-      show: DEBUG_OFFSCREEN_BROWSER,
+      show: false,
       frame: false,
       resizable: DEBUG_OFFSCREEN_BROWSER,
       backgroundColor: 'black',
-      // backgroundColor: DEBUG_OFFSCREEN_BROWSER ? 'black' : undefined,
       webPreferences: {
         offscreen: !DEBUG_OFFSCREEN_BROWSER,
         textAreasAreResizable: false,
@@ -180,6 +180,14 @@ export default class GameSense extends EventEmitter {
       },
     });
 
+    this.renderWindow.once("ready-to-show", () => {
+      this.renderWindow.webContents.setZoomFactor(ZOOM_FACTOR);
+    // this.renderWindow.webContents.setFrameRate(60);
+    if(DEBUG_OFFSCREEN_BROWSER) {
+        this.renderWindow.show();
+      }
+    });
+
     this.renderWindow.webContents.on(
       "paint",
       (event, dirty, image: NativeImage) => {
@@ -187,11 +195,7 @@ export default class GameSense extends EventEmitter {
       }
     );
 
-    // this.renderWindow.webContents.setFrameRate(60);
-
     const rendererPage = path.join(__dirname, '..', '..', 'app', "render", "index.html");
-
-    log.info(`rendererPage = ${rendererPage}`);
 
     this.renderWindow.loadFile(rendererPage);
 
@@ -202,7 +206,7 @@ export default class GameSense extends EventEmitter {
 
   onTickerUpdate = (data: TickerUpdate): void => {
     if (this.renderWindow) {
-      this.renderWindow.webContents.send("tickerupdate", data);
+      this.renderWindow.webContents.send("ticker-update", data);
     }
 
     if (Date.now() - this.lastUpdateTime > 60000) {
@@ -216,11 +220,11 @@ export default class GameSense extends EventEmitter {
     }
   };
 
-  onHeartbeat = (): void => {
-    if (this.renderWindow) {
-      this.renderWindow.webContents.send("heartbeat");
-    }
-  };
+  // onHeartbeat = (): void => {
+  //   if (this.renderWindow) {
+  //     this.renderWindow.webContents.send("heartbeat");
+  //   }
+  // };
 
   private heartbeat = (): void => {
     gamesense("game_heartbeat", {

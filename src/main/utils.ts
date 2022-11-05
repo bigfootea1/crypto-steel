@@ -11,7 +11,6 @@ export function getIcon( symbol?: string, scale?: number ): Electron.NativeImage
     let icon;
     if(symbol) {
         const filePath = path.join(__dirname, '..', '..', 'assets', `${symbol.toLowerCase()}.png`);
-        log.info(filePath);
         icon = nativeImage.createFromPath(filePath);        
     }
 
