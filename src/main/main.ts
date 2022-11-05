@@ -23,10 +23,15 @@ app.on("ready", async () => {
 
     const theApp = new App(ticker.coinMap);
 
+    theApp.on('quit', async () => {
+      await ticker.suspend();
+      app.quit();
+    });
+
     ticker.on("config", (cfg) => {
       log.info('config: ', cfg);
     });
-    
+
     // ticker.on("update", (cfg) => {
     //   log.info('update: ', cfg);
     // });
@@ -47,6 +52,7 @@ app.on("ready", async () => {
     });
     
     powerMonitor.on("resume", async () => {
+      log.info('CryptoSteel.resume');
       await ticker.resume();
     });
 

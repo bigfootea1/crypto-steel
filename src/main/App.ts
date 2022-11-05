@@ -67,7 +67,7 @@ export default class App extends EventEmitter {
     {
       label: "Quit",
       type: "normal",
-      click: () => app.quit(),
+      click: () => this.emit("quit"),
     },
   ];
   

@@ -7,9 +7,13 @@ import filter from "lodash/filter";
 import forEach from "lodash/forEach";
 import invoke from "lodash/invoke";
 import map from "lodash/map";
+import has from "lodash/has";
 import mapKeys from "lodash/mapKeys";
 import sortBy from "lodash/sortBy";
 import uniqBy from "lodash/uniqBy";
+
+import { setTimeout } from 'timers/promises';
+import keys from "lodash/keys";
 
 const PUBLIC_WSS_URL = "wss://ws.kraken.com";
 
@@ -51,7 +55,6 @@ export default class Ticker extends EventEmitter {
 
   private lastClose: Record< string, number > = {};
 
-  private reconnectTimer: NodeJS.Timeout;
   private suspended: boolean;
 
   constructor() {
@@ -111,23 +114,39 @@ export default class Ticker extends EventEmitter {
   }
 
   public subscribe = async (base: string[], quote: string): Promise<void> => {
-    this.unsubscribe();
     if(this.ws && (this.ws.readyState === WebSocket.OPEN)) {
       const pairList = map(base, (b) => `${b}/${quote}`);
-      this.ws.send(
-        JSON.stringify({
-          event: "subscribe",
-          pair: pairList,
-          subscription: {
-            name: "ohlc",
-          },
-        })
-      );
+      const subList = filter(pairList, (pair) => !has(this.subscription, pair));
+      const unsubList = map(filter(keys(this.subscription), (pair) => !pairList.includes(pair)), (pair: string) => this.denormalizePair(pair));
+
+      if(unsubList.length) {
+        this.ws.send(
+          JSON.stringify({
+            event: "unsubscribe",
+            pair: unsubList,
+            subscription: {
+              name: 'ohlc'
+            }
+          })
+        );
+      }
+
+      if(subList.length) {
+        this.ws.send(
+          JSON.stringify({
+            event: "subscribe",
+            pair: subList,
+            subscription: {
+              name: "ohlc",
+            },
+          })
+        );
+      }
     }
   };
 
   private async connect() {
-    if(!this.ws) {
+    if(!this.ws && !this.suspended) {
       log.debug("Ticker.connect");
 
       return new Promise((resolve, reject) => {
@@ -149,11 +168,6 @@ export default class Ticker extends EventEmitter {
     if (this.ws) {
       log.debug("Ticker.disconnect");
 
-      if(this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
-      }
-
       return new Promise((resolve) => {
         this.ws.once('open', resolve);
         this.ws.once('close', resolve);
@@ -174,18 +188,23 @@ export default class Ticker extends EventEmitter {
     };
   }
 
-  private retryConnection() {
-    if(this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
+  private normalizePair(pair: string) {
+    const { base, quote } = this.parsePair(pair);
+    return `${base}/${quote}`;
+  }
 
+  private denormalizePair(pair: string) {
+    const { base, quote } = this.parsePair(pair);
+    return `${base === 'BTC' ? 'XBT' : base}/${quote === 'BTC' ? 'BTC' : quote}`;
+  }
+
+  private async retryConnection() {
     if(!this.suspended) {
       log.debug('...Scheduling connection retry');
-      this.reconnectTimer = setTimeout(() => {
-        log.debug('...connection retry');
-        this.connect();
-      }, 2000);
+      await setTimeout(2000);
+
+      log.debug('...connection retry');
+      await this.connect();
     }
   }
 
@@ -194,13 +213,13 @@ export default class Ticker extends EventEmitter {
     this.emit("connected");
   };
 
-  private onClose = (evt: any): void => {
-    log.debug(`Ticker.onClose ${JSON.stringify(evt)}`);
+  private onClose = async (): Promise<void> => {
+    log.debug(`Ticker.onClose`);
     this.emit("closed");
-    this.subscription = undefined;
+    this.subscription = {};
     this.ws = null;
 
-    this.retryConnection();
+    await this.retryConnection();
   };
 
   private onError = (err: any): void => {
@@ -225,7 +244,7 @@ export default class Ticker extends EventEmitter {
     const close = parseFloat(data[1][5]);
 
     const { base, quote } = this.parsePair(data[3]);
-    const pair = `${base}/${quote}`;
+    const pair = this.normalizePair(data[3]);
 
     if (!this.lastClose[pair]) {
       this.lastClose[pair] = close;
@@ -261,28 +280,15 @@ export default class Ticker extends EventEmitter {
   private subscriptionStatus = (data: any): void => {
     if (data.status === "subscribed") {
       log.debug(`SUBSCRIBED: ${data.channelID} - ${data.pair}`);
-      this.subscription[data.channelID] = data;
+      const pair = this.normalizePair(data.pair);
+      this.subscription[pair] = data;
     }
     if (data.status === "unsubscribed") {
       log.debug(`UNSUBSCRIBED: ${data.channelID} - ${data.pair}`);
-      delete this.subscription[data.channelID];
+      const pair = this.normalizePair(data.pair);
+      delete this.subscription[pair];
     }
     this.emit(data.status, data);
   };
-
-  private unsubscribe(): void {
-    if(this.ws 
-      && (this.ws.readyState === WebSocket.OPEN)
-      ) {
-        forEach(this.subscription, (sub: Subscription) => {
-          this.ws.send(
-            JSON.stringify({
-              event: "unsubscribe",
-              channelID: sub.channelID,
-            })
-          );
-        });
-    }
-  }
 
 }
