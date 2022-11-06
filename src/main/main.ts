@@ -36,15 +36,8 @@ app.on("ready", async () => {
     //   log.info('update: ', cfg);
     // });
 
-    ticker.on("status-change", (event: any) => {
-      if(event.status === 'online') {
-        ticker.subscribe(theApp.base, theApp.quote);
-      }
-    });
-
-    theApp.on("config-change", (config) => {
-      ticker.subscribe(config.base, config.quote);
-    });
+    ticker.on("status-change", () => ticker.subscribe(theApp.base, theApp.quote));
+    theApp.on("config-change", (config) => ticker.subscribe(config.base, config.quote));
 
     powerMonitor.on("suspend", async () => {
       log.info('CryptoSteel.suspend');

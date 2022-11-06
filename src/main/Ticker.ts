@@ -19,7 +19,17 @@ const PUBLIC_WSS_URL = "wss://ws.kraken.com";
 
 type OHLCUpdate = [
   channelId: number,
-  data: string[],
+  data: [
+    time: string,
+    etime: string,
+    open: string,
+    high: string,
+    low: string,
+    close: string,
+    vwap: string,
+    volume: string,
+    count: string
+  ],
   channelName: string,
   pair: string
 ];
@@ -137,6 +147,7 @@ export default class Ticker extends EventEmitter {
             event: "subscribe",
             pair: subList,
             subscription: {
+              interval: 1,
               name: "ohlc",
             },
           })
@@ -239,12 +250,12 @@ export default class Ticker extends EventEmitter {
     }
   };
 
-  private tickerUpdate = (data: OHLCUpdate): void => {
-    const open = parseFloat(data[1][2]);
-    const close = parseFloat(data[1][5]);
+  private tickerUpdate = (update: OHLCUpdate): void => {
+    const open = parseFloat(update[1][2]);
+    const close = parseFloat(update[1][5]);
 
-    const { base, quote } = this.parsePair(data[3]);
-    const pair = this.normalizePair(data[3]);
+    const { base, quote } = this.parsePair(update[3]);
+    const pair = this.normalizePair(update[3]);
 
     if (!this.lastClose[pair]) {
       this.lastClose[pair] = close;
