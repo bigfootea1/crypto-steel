@@ -1,68 +1,76 @@
-import { Swiper, SwiperSlide } from "swiper/react";
+import React, { FC, useReducer, VFC } from "react";
 import { Autoplay } from "swiper";
-import React, { Component } from "react";
+import { Swiper, SwiperSlide } from "swiper/react";
+import map from 'lodash/map';
 
-import "./ticker.css";
+import { TickerPair } from "../types/ticker";
+import { useTicker } from "./hooks/ticker";
+import { useTickerSubscriptions } from "./hooks/tickerSubscriptions";
+
 import "swiper/swiper.min.css";
+import "./css/ticker.css";
 
-function Coin({ price, base, quote }) {
-  let priceStr;
+const Coin: FC<TickerPair> = (tickerpair: TickerPair) => {
+  const [pair] = useReducer((thePair: TickerPair) => thePair, tickerpair);
+  const ticker = useTicker(pair.base);
 
+  let priceStr: string;
   try {
     priceStr = new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: quote,
+      currency: pair.quote,
       maximumFractionDigits: 2,
-    }).format(price);
+    }).format(ticker.close);
   } catch (err) {
     priceStr = new Intl.NumberFormat("en-US", {
       style: "decimal",
       maximumFractionDigits: 2,
-    }).format(price);
+    }).format(ticker.close);
   }
 
   return (
     <div className="ticker">
-      <i id="tickerLogo" className={`cf cf-${base.toLowerCase()}`}></i>
-      <div id="tickerPrice">{priceStr}</div>
-      <div id="tickerQuote">{`${base}/${quote}`}</div>
+      <i id="tickerLogo" className={`cf cf-${pair.base.toLowerCase()}`}></i>
+      <div id="tickerPrice"><span>{priceStr}</span></div>
+      <div id="tickerQuote">{`${pair.base}/${pair.quote}`}</div>
     </div>
   );
-}
+};
 
-export default class Ticker extends Component {
-  render(): JSX.Element {
+export const Ticker: VFC = () => {
+  const subs = useTickerSubscriptions();
 
-    window.ticker.onTickerUpdate((tickerData) => {
-      console.log('Ticker Data Received: ', tickerData);
-    });
-  
-    return (
-      <Swiper
-        modules={[Autoplay]}
-        autoplay={{
-          delay: 3000,
-        }}
-        allowTouchMove={false}
-        loop
-        enabled={true}
-        width={128}
-        height={40}
-        speed={1900}
-      >
-        <SwiperSlide>
-          <Coin price={20000} quote="USD" base="BTC" />
-        </SwiperSlide>
-        <SwiperSlide>
-          <Coin price={30000} quote="USD" base="BTC" />
-        </SwiperSlide>
-        <SwiperSlide>
-          <Coin price={40000} quote="USD" base="BTC" />
-        </SwiperSlide>
-        <SwiperSlide>
-          <Coin price={50000} quote="USD" base="BTC" />
-        </SwiperSlide>
-      </Swiper>
-    );
-  }
-}
+  const slides = map(subs, ({ quote, base }) => (
+    <SwiperSlide key={`${base}/${quote}`}>
+      <Coin quote={quote} base={base} />
+    </SwiperSlide>
+  ));
+
+  console.log('slide count: ', slides.length);
+
+  return (
+    <Swiper
+      modules={[Autoplay]}
+      autoplay={{
+        delay: 3000,
+      }}
+      allowTouchMove={false}
+      loop
+      direction="vertical"
+      // enabled={true}
+      width={128}
+      height={40}
+      speed={1900}
+      onSlidesLengthChange={(swiper) => {
+        if(slides.length === 1) {
+          swiper.autoplay.stop();
+        } else {
+          swiper.autoplay.start();
+        }
+      }}
+      // onSlideChange={() => window.ticker.sendState("state here")}
+    >
+      {slides}
+    </Swiper>
+  );
+};

@@ -1,7 +1,7 @@
 import EventEmitter from "events";
 import { MessageEvent, WebSocket } from "ws";
 import kracken from "./gotKracken";
-import log, { handleError } from "./utils";
+import log, { denormalizePair, handleError, normalizePair, parsePair } from "./utils";
 
 import filter from "lodash/filter";
 import forEach from "lodash/forEach";
@@ -14,6 +14,7 @@ import uniqBy from "lodash/uniqBy";
 
 import { setTimeout } from 'timers/promises';
 import keys from "lodash/keys";
+import { TickerUpdate } from "../types/ticker";
 
 const PUBLIC_WSS_URL = "wss://ws.kraken.com";
 
@@ -47,15 +48,6 @@ type GenericKrackenEvent = {
   event: string;
 };
 
-export type TickerUpdate = {
-  open: number;
-  close: number;
-  diff: number;
-  delta: number;
-  base: string;
-  quote: string;
-};
-
 export default class Ticker extends EventEmitter {
   private ws: WebSocket;
 
@@ -81,7 +73,7 @@ export default class Ticker extends EventEmitter {
       .catch((): any[] => []);
 
     this._assets = map(assets.result, (a) => {
-      const { base, quote } = this.parsePair(a.wsname);
+      const { base, quote } = parsePair(a.wsname);
       return {
         base,
         quote,
@@ -127,7 +119,7 @@ export default class Ticker extends EventEmitter {
     if(this.ws && (this.ws.readyState === WebSocket.OPEN)) {
       const pairList = map(base, (b) => `${b}/${quote}`);
       const subList = filter(pairList, (pair) => !has(this.subscription, pair));
-      const unsubList = map(filter(keys(this.subscription), (pair) => !pairList.includes(pair)), (pair: string) => this.denormalizePair(pair));
+      const unsubList = map(filter(keys(this.subscription), (pair) => !pairList.includes(pair)), (pair: string) => denormalizePair(pair));
 
       if(unsubList.length) {
         this.ws.send(
@@ -179,34 +171,16 @@ export default class Ticker extends EventEmitter {
     if (this.ws) {
       log.debug("Ticker.disconnect");
 
-      return new Promise((resolve) => {
-        this.ws.once('open', resolve);
-        this.ws.once('close', resolve);
-        this.ws.once('error', resolve);
-        this.ws.close();
+      // return new Promise((resolve) => {
+      //   this.ws.once('open', resolve);
+      //   this.ws.once('close', resolve);
+      //   this.ws.once('error', resolve);
+      //   this.ws.close();
         this.ws.terminate();
-      }).finally(() => this.ws = null);
+      // }).finally(() => this.ws = null);
+
+      this.ws = null;
     }
-  }
-
-  private parsePair(pairString: string): { base: string; quote: string } {
-    const pair = pairString.split("/");
-    const base = pair[0] === "XBT" ? "BTC" : pair[0];
-    const quote = pair[1] === "XBT" ? "BTC" : pair[1];
-    return {
-      base,
-      quote,
-    };
-  }
-
-  private normalizePair(pair: string) {
-    const { base, quote } = this.parsePair(pair);
-    return `${base}/${quote}`;
-  }
-
-  private denormalizePair(pair: string) {
-    const { base, quote } = this.parsePair(pair);
-    return `${base === 'BTC' ? 'XBT' : base}/${quote === 'BTC' ? 'BTC' : quote}`;
   }
 
   private async retryConnection() {
@@ -254,8 +228,8 @@ export default class Ticker extends EventEmitter {
     const open = parseFloat(update[1][2]);
     const close = parseFloat(update[1][5]);
 
-    const { base, quote } = this.parsePair(update[3]);
-    const pair = this.normalizePair(update[3]);
+    const { base, quote } = parsePair(update[3]);
+    const pair = normalizePair(update[3]);
 
     if (!this.lastClose[pair]) {
       this.lastClose[pair] = close;
@@ -275,7 +249,7 @@ export default class Ticker extends EventEmitter {
 
     this.lastClose[pair] = close;
 
-    log.debug("TICKER: ", newTicker);
+    // log.debug("TICKER: ", newTicker);
     this.emit("update", newTicker);
   };
 
@@ -284,19 +258,19 @@ export default class Ticker extends EventEmitter {
   };
 
   private systemStatus = (data: any): void => {
-    log.debug("STATUS: ", data);
+    // log.debug("STATUS: ", data);
     this.emit("status-change", data);
   };
 
   private subscriptionStatus = (data: any): void => {
     if (data.status === "subscribed") {
       log.debug(`SUBSCRIBED: ${data.channelID} - ${data.pair}`);
-      const pair = this.normalizePair(data.pair);
+      const pair = normalizePair(data.pair);
       this.subscription[pair] = data;
     }
     if (data.status === "unsubscribed") {
       log.debug(`UNSUBSCRIBED: ${data.channelID} - ${data.pair}`);
-      const pair = this.normalizePair(data.pair);
+      const pair = normalizePair(data.pair);
       delete this.subscription[pair];
     }
     this.emit(data.status, data);

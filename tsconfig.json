@@ -3,14 +3,13 @@
     "jsx": "react",
     "module": "commonjs",
     "target": "ES6",
-    // "downlevelIteration": true,
     "noImplicitAny": false,
     "outDir": "app",
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "typeRoots": ["./node_modules/@types"],
-    // "isolatedModules": true,
     "esModuleInterop": true,
-    "sourceMap": true
-  }
+    "sourceMap": true,
+  },
+  "exclude": ["render/**/*", "!render/preload.js"],
 }

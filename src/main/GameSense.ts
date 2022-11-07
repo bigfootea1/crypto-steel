@@ -4,7 +4,7 @@ import gamesense from "./gotGamesense";
 import { create } from "bitwise/buffer";
 import { nativeImage, BrowserWindow, NativeImage } from "electron";
 import log, { handleError } from "./utils";
-import { TickerUpdate } from "./Ticker";
+import { TickerUpdate } from "../types/ticker";
 
 const GAMESENSE_GAME_NAME = "CRYPTO-STEEL";
 const GAMESENSE_GAME_DESCRIPTION = "Cryptocurrency Ticker";

@@ -23,6 +23,7 @@
     "eslint": "^7.32.0",
     "eslint-plugin-import": "^2.26.0",
     "parcel": "^2.7.0",
+    "path-browserify": "^1.0.1",
     "process": "^0.11.10",
     "typescript": "^4.8.4"
   },
@@ -69,16 +70,17 @@
     },
     "preload": {
       "context": "electron-main",
-      "source": "src/preload/preload.ts",
-      "distDir": "./app"
+      "source": "src/render/preload.ts",
+      "distDir": "./app/render"
     }
   },
   "scripts": {
     "clean": "rimraf app dist/**/* .parcel-cache",
     "superclean": "npm run clean && rimraf package-lock.json node_modules",
-    "build": "tsc && parcel build --target renderer",
+    "compile": "tsc",
+    "build": "tsc && parcel build --target renderer --target preload",
     "watch-main": "tsc -w",
-    "watch-render": "parcel watch --target renderer",
+    "watch-render": "parcel watch --target renderer --target preload --no-hmr --no-cache",
     "lint": "eslint -c .eslintrc --ext .ts ./src",
     "start": "npm run build && electron ./app/main.js",
     "pack": "npm run clean && parcel build",
