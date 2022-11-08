@@ -1,4 +1,5 @@
 import { app, powerMonitor } from 'electron';
+
 import { TickerUpdate } from '../types/ticker';
 import App from './App';
 import Renderer from './Renderer';
@@ -18,6 +19,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("ready", async () => {
+
     log.debug('App READY');
 
     const renderer = new Renderer();
@@ -42,6 +44,7 @@ app.on("ready", async () => {
     });
 
     ticker.on("update", (tickerUpdate: TickerUpdate) => {
+      log.info('TICKER: ', tickerUpdate);
       renderer.tickerUpdate(tickerUpdate);
     });
 
