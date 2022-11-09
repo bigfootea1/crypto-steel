@@ -6,12 +6,13 @@
 .ticker {
     background-color: black;
     font-family: 'roboto', sans-serif;
+    user-select: none;
 }
 
 #tickerLoading {
     position: absolute;
     left: 10px;
-    top: 15px;
+    top: 12px;
     text-align: center;
     font-size: 12px;
     width: 100%;
@@ -40,7 +41,7 @@
     left: 18px;
     text-align: center;
     font-size: 16px;
-    bottom: -3px;
+    bottom: -2px;
     width: 100%;
 }
 
