@@ -101,6 +101,7 @@ export default class App extends EventEmitter {
       click: (item: MenuItem) => { 
         this.setPairs(item.label, this.config.base);
       },
+      icon: getIcon(q)
     }));
 
     this.baseSubmenu.submenu = map(this.coinMap[this.config.quote], (q) => ({
@@ -112,6 +113,7 @@ export default class App extends EventEmitter {
         const menuItems = this.contextMenu.getMenuItemById('coin-submenu').submenu.items;
         this.setPairs(this.config.quote, map(filter(menuItems, { checked: true}), (m: any) => m.label));
       },
+      icon: getIcon(q.base)
     }));
 
     this.quoteSubmenu.icon = getIcon(this.config.quote);

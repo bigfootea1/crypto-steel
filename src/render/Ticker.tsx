@@ -36,7 +36,7 @@ const Coin: FC<CoinProps> = ({ base, quote }) => {
       <div className="ticker">
         <i id="tickerLogo" className={`cf cf-${base.toLowerCase()}`}></i>
         <div id="tickerPrice">{priceStr}</div>
-        <div id="tickerQuote">{`${base}/${quote}`}</div>
+        <div id="tickerQuote">{`${base} / ${quote}`}</div>
       </div>
     );
   }
@@ -62,9 +62,15 @@ export const Ticker: VFC = () => {
     <Swiper
       modules={[Autoplay]}
       autoplay={{
-        delay: 3000,
+        delay: 10000,
       }}
       allowTouchMove={false}
+      longSwipes={false}
+      preventInteractionOnTransition={true}
+      resistance={false}
+      roundLengths={true}
+      slidesPerView={1}
+      updateOnWindowResize={false}
       loop
       direction="vertical"
       enabled={true}

@@ -106,11 +106,13 @@ export default class Ticker extends EventEmitter {
   }
 
   public resume = async (): Promise<void> => {
+    log.debug("Ticker.resume");
     this.suspended = false;
     await this.connect();
   };
 
   public async suspend(): Promise<void> {
+    log.debug("Ticker.suspend");
     this.suspended = true;
     await this.disconnect();
   }

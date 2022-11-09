@@ -2,6 +2,7 @@ import { app, powerMonitor } from 'electron';
 
 import { TickerUpdate } from '../types/ticker';
 import App from './App';
+import GameSense from './GameSense';
 import Renderer from './Renderer';
 import Ticker from './Ticker';
 import log, { parsePair } from "./utils";
@@ -22,10 +23,12 @@ app.on("ready", async () => {
 
     log.debug('App READY');
 
+    const gamesense = new GameSense();
+
     const renderer = new Renderer();
 
     renderer.on('render', (rect: any, buff: any) => {
-      // log.info(rect);
+      gamesense.updateOLED(rect, buff);
     });
 
     const ticker = new Ticker();
@@ -34,8 +37,10 @@ app.on("ready", async () => {
     const theApp = new App(ticker.coinMap);
 
     theApp.on('quit', async () => {
+      log.info('Quitting...');
       await ticker.suspend();
       await renderer.suspend();
+      await gamesense.suspend();
       app.quit();
     });
 
@@ -44,7 +49,7 @@ app.on("ready", async () => {
     });
 
     ticker.on("update", (tickerUpdate: TickerUpdate) => {
-      log.info('TICKER: ', tickerUpdate);
+      // log.info('TICKER: ', tickerUpdate);
       renderer.tickerUpdate(tickerUpdate);
     });
 
@@ -65,14 +70,17 @@ app.on("ready", async () => {
       log.info('CryptoSteel.suspend');
       await ticker.suspend();
       await renderer.suspend();
+      await gamesense.suspend();
     });
     
     powerMonitor.on("resume", async () => {
       log.info('CryptoSteel.resume');
+      await gamesense.resume();
       await renderer.resume();
       await ticker.resume();
     });
 
+    await gamesense.resume();
     await renderer.resume();
     await ticker.resume();
 });

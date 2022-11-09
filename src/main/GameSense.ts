@@ -1,34 +1,21 @@
-import path from "path";
+import { create } from "bitwise/buffer";
+import { nativeImage } from "electron";
 import EventEmitter from "events";
 import gamesense from "./gotGamesense";
-import { create } from "bitwise/buffer";
-import { nativeImage, BrowserWindow, NativeImage } from "electron";
 import log, { handleError } from "./utils";
-import { TickerUpdate } from "../types/ticker";
 
 const GAMESENSE_GAME_NAME = "CRYPTO-STEEL";
 const GAMESENSE_GAME_DESCRIPTION = "Cryptocurrency Ticker";
 const GAMESENSE_GAME_DEVELOPER = "Darren Schueller";
 
-const DEBUG_OFFSCREEN_BROWSER = true;
-const DEVTOOLS_ENABLED = false || DEBUG_OFFSCREEN_BROWSER;
-
-const ZOOM_FACTOR = DEBUG_OFFSCREEN_BROWSER ? 4 : 1;
-
 export default class GameSense extends EventEmitter {
   private heartbeatTimer: NodeJS.Timer;
-
   private bitmapBuffer: any;
-
-  private renderWindow: BrowserWindow;
-  private lastUpdateTime = 0;
 
   constructor(private width: number = 128, private height: number = 40) {
     super();
     log.info("GameSense.constructor");
     this.bitmapBuffer = Buffer.alloc(width * height, 0);
-
-    this.createRenderWindow();
   }
 
   async resume(): Promise<void> {
@@ -109,7 +96,12 @@ export default class GameSense extends EventEmitter {
       });
 
       this.heartbeatTimer = setInterval(
-        this.heartbeat,
+        () =>
+          gamesense("game_heartbeat", {
+            json: {
+              game: GAMESENSE_GAME_NAME,
+            },
+          }),
         ggInfo.game_metadata.deinitialize_timer_length_ms - 2000
       );
     } catch (err) {
@@ -154,87 +146,7 @@ export default class GameSense extends EventEmitter {
       });
   };
 
-  private createRenderWindow() {
-    log.verbose("GameSense.createRenderWindow");
-
-    // Create the browser window.
-    this.renderWindow = new BrowserWindow({
-      useContentSize: true,
-      width: this.width * ZOOM_FACTOR,
-      height: this.height * ZOOM_FACTOR,
-      minimizable: false,
-      maximizable: false,
-      transparent: false,
-      alwaysOnTop: DEBUG_OFFSCREEN_BROWSER,
-      show: false,
-      frame: false,
-      resizable: DEBUG_OFFSCREEN_BROWSER,
-      backgroundColor: 'black',
-      webPreferences: {
-        offscreen: !DEBUG_OFFSCREEN_BROWSER,
-        textAreasAreResizable: false,
-        nodeIntegration: true,
-        contextIsolation: true,
-        zoomFactor: 1.0,
-        preload: path.join(__dirname, "..", "..", "app", "preload", "preload.js"),
-      },
-    });
-
-    this.renderWindow.once("ready-to-show", () => {
-      this.renderWindow.webContents.setZoomFactor(ZOOM_FACTOR);
-    // this.renderWindow.webContents.setFrameRate(60);
-    if(DEBUG_OFFSCREEN_BROWSER) {
-        this.renderWindow.show();
-      }
-    });
-
-    this.renderWindow.webContents.on(
-      "paint",
-      (event, dirty, image: NativeImage) => {
-        this.updateOLED(dirty, image);
-      }
-    );
-
-    const rendererPage = path.join(__dirname, '..', '..', 'app', "render", "index.html");
-
-    this.renderWindow.loadFile(rendererPage);
-
-    if (DEBUG_OFFSCREEN_BROWSER || DEVTOOLS_ENABLED) {
-      this.renderWindow.webContents.openDevTools();
-    }
-  }
-
-  onTickerUpdate = (data: TickerUpdate): void => {
-    if (this.renderWindow) {
-      this.renderWindow.webContents.send("ticker-update", data);
-    }
-
-    if (Date.now() - this.lastUpdateTime > 60000) {
-      if (data.delta > 0) {
-        this.triggerEvent("UPTICK");
-      }
-      if (data.delta < 0) {
-        this.triggerEvent("DNTICK");
-      }
-      this.lastUpdateTime = Date.now();
-    }
-  };
-
-  // onHeartbeat = (): void => {
-  //   if (this.renderWindow) {
-  //     this.renderWindow.webContents.send("heartbeat");
-  //   }
-  // };
-
-  private heartbeat = (): void => {
-    gamesense("game_heartbeat", {
-      json: {
-        game: GAMESENSE_GAME_NAME,
-      },
-    });
-  };
-
-  private updateOLED = async (
+  public updateOLED = async (
     rect: Electron.Rectangle,
     img: Electron.NativeImage
   ): Promise<void> => {
@@ -265,7 +177,7 @@ export default class GameSense extends EventEmitter {
     });
   };
 
-  private clearOLED = async (): Promise<void> => {
+  public clearOLED = async (): Promise<void> => {
     await this.updateOLED(
       {
         height: this.height,
