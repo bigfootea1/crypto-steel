@@ -2,7 +2,6 @@
   "name": "crypto-steel",
   "version": "2.0.0",
   "description": "Crypto Ticker for your SteelSeries gear",
-  "main": "app/main.js",
   "repository": "",
   "keywords": [],
   "author": "Darren Schueller",
