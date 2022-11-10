@@ -11,5 +11,5 @@
     "esModuleInterop": true,
     "sourceMap": true,
   },
-  "exclude": ["render/**/*", "!render/preload.js"],
+  "exclude": ["render/**/*"],
 }

@@ -2,7 +2,7 @@ import concat from "lodash/concat";
 import reject from "lodash/reject";
 import sortBy from "lodash/sortBy";
 import { useEffect, useReducer } from "react";
-import { TickerPair } from "../../types/ticker";
+import { TickerPair } from "../../../types/ticker";
 
 type TickerSubAction = {
   type: string;

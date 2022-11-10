@@ -4,8 +4,8 @@ import path from "path";
 import { TickerPair, TickerUpdate } from "../types/ticker";
 import log from "./utils";
 
-const DEBUG_OFFSCREEN_BROWSER = false;
-const DEVTOOLS_ENABLED = false || DEBUG_OFFSCREEN_BROWSER;
+const DEBUG_OFFSCREEN_BROWSER = true;
+const DEVTOOLS_ENABLED = true || DEBUG_OFFSCREEN_BROWSER;
 
 const ZOOM_FACTOR = DEBUG_OFFSCREEN_BROWSER ? 4 : 1;
 
@@ -57,7 +57,7 @@ export default class Renderer extends EventEmitter {
             "..",
             "app",
             "render",
-            "preload.js"
+            "ticker-preload.js"
           ),
         },
       });
@@ -83,7 +83,7 @@ export default class Renderer extends EventEmitter {
         "..",
         "app",
         "render",
-        "index.html"
+        "ticker.html"
       );
 
       await this.renderWindow.loadFile(rendererPage);

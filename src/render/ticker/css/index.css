@@ -1,0 +1,9 @@
+body {
+    color: #FFF;
+    margin: 0;
+    padding: 0;
+    width: 128px;
+    height: 40px;
+    /* overflow: hidden;
+    height: 100vh; */
+}

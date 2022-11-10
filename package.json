@@ -64,19 +64,19 @@
       "distDir": "./app"
     },
     "renderer": {
-      "source": "src/render/index.html",
+      "source": ["src/render/ticker.html", "src/render/effects.html"],
       "distDir": "./app/render",
       "publicUrl": "."
     },
     "preload": {
       "context": "electron-main",
-      "source": "src/render/preload.ts",
+      "source": ["src/render/ticker-preload.ts", "src/render/effects-preload.ts"],
       "distDir": "./app/render"
     }
   },
   "scripts": {
-    "clean": "rimraf app dist/**/* .parcel-cache",
-    "superclean": "npm run clean && rimraf package-lock.json node_modules",
+    "clean": "rimraf app dist/**/*",
+    "superclean": "npm run clean && rimraf package-lock.json node_modules .parcel-cache",
     "compile": "tsc",
     "build": "tsc && parcel build --target renderer --target preload",
     "watch-main": "tsc -w",

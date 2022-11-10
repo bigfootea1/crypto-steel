@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { TickerUpdate } from "../../types/ticker";
+import { TickerUpdate } from "../../../types/ticker";
 import debounce from 'lodash/debounce';
 
 export function useTicker(tickerBase: string): TickerUpdate {
