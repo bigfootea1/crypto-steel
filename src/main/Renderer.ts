@@ -10,7 +10,6 @@ const DEVTOOLS_ENABLED = true || DEBUG_OFFSCREEN_BROWSER;
 const ZOOM_FACTOR = DEBUG_OFFSCREEN_BROWSER ? 4 : 1;
 
 export default class Renderer extends EventEmitter {
-  private bitmapBuffer: any;
   private renderWindow: BrowserWindow;
 
   public bitBuffer: Buffer;
@@ -18,7 +17,6 @@ export default class Renderer extends EventEmitter {
   constructor(private width: number = 128, private height: number = 40) {
     super();
     log.info("Renderer.constructor");
-    this.bitmapBuffer = Buffer.alloc(width * height, 0);
   }
 
   public suspend = async (): Promise<void> => {
@@ -41,6 +39,7 @@ export default class Renderer extends EventEmitter {
         minimizable: false,
         maximizable: false,
         transparent: false,
+        fullscreenable: false,
         alwaysOnTop: DEBUG_OFFSCREEN_BROWSER,
         show: false,
         frame: false,
