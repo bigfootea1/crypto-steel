@@ -172,15 +172,7 @@ export default class Ticker extends EventEmitter {
   private async disconnect() {
     if (this.ws) {
       log.debug("Ticker.disconnect");
-
-      // return new Promise((resolve) => {
-      //   this.ws.once('open', resolve);
-      //   this.ws.once('close', resolve);
-      //   this.ws.once('error', resolve);
-      //   this.ws.close();
-        this.ws.terminate();
-      // }).finally(() => this.ws = null);
-
+      this.ws.terminate();
       this.ws = null;
     }
   }

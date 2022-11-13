@@ -1,4 +1,4 @@
-import { app, powerMonitor } from 'electron';
+import { app, NativeImage, powerMonitor, Rectangle } from 'electron';
 
 import { TickerUpdate } from '../types/ticker';
 import App from './App';
@@ -7,7 +7,11 @@ import Renderer from './Renderer';
 import Ticker from './Ticker';
 import log, { parsePair } from "./utils";
 
+const ONSCREEN = false;
+const DEVTOOLS = false || ONSCREEN;
+
 app.setAppLogsPath();
+app.disableHardwareAcceleration();
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -25,10 +29,29 @@ app.on("ready", async () => {
 
     const gamesense = new GameSense();
 
-    const renderer = new Renderer();
+    const tickerRenderer = new Renderer({
+      width: 128,
+      height: 40,
+      preload: "render/ticker-preload.js",
+      url: "render/ticker.html",
+      onPaint: (event: any, rect: Rectangle, buff: NativeImage) => {
+        gamesense.updateOLED(rect, buff);
+      },
+      onscreen: ONSCREEN,
+      devTools: DEVTOOLS
+    });
 
-    renderer.on('render', (rect: any, buff: any) => {
-      gamesense.updateOLED(rect, buff);
+    const effectRenderer = new Renderer({
+      width: 22,
+      height: 6,
+      preload: "render/effects-preload.js",
+      url: "render/effects.html",
+      onPaint: (event: any, rect: Rectangle, buff: NativeImage) => {
+        // console.log(rect);
+      },
+      onscreen: ONSCREEN,
+      devTools: DEVTOOLS,
+      positionBelow: tickerRenderer
     });
 
     const ticker = new Ticker();
@@ -39,18 +62,14 @@ app.on("ready", async () => {
     theApp.on('quit', async () => {
       log.info('Quitting...');
       await ticker.suspend();
-      await renderer.suspend();
+      await effectRenderer.suspend();
+      await tickerRenderer.suspend();
       await gamesense.suspend();
       app.quit();
     });
 
-    ticker.on("config", (cfg) => {
-      log.info('config: ', cfg);
-    });
-
     ticker.on("update", (tickerUpdate: TickerUpdate) => {
-      // log.info('TICKER: ', tickerUpdate);
-      renderer.tickerUpdate(tickerUpdate);
+      tickerRenderer.send(`ticker-update-${tickerUpdate.base}`.toLowerCase(), tickerUpdate);
     });
 
     ticker.on("status-change", () => ticker.subscribe(theApp.base, theApp.quote));
@@ -59,28 +78,31 @@ app.on("ready", async () => {
     });
 
     ticker.on("subscribed", (sub: any) => {
-      renderer.tickerSubscribe(parsePair(sub.pair));
+      tickerRenderer.send("ticker-subscribe",parsePair(sub.pair));
     });
 
     ticker.on("unsubscribed", (sub: any) => {
-      renderer.tickerUnsubscribe(parsePair(sub.pair));
+      tickerRenderer.send("ticker-unsubscribe",parsePair(sub.pair));
     });
 
     powerMonitor.on("suspend", async () => {
       log.info('CryptoSteel.suspend');
       await ticker.suspend();
-      await renderer.suspend();
+      await effectRenderer.suspend();
+      await tickerRenderer.suspend();
       await gamesense.suspend();
     });
     
     powerMonitor.on("resume", async () => {
       log.info('CryptoSteel.resume');
       await gamesense.resume();
-      await renderer.resume();
+      await effectRenderer.resume();
+      await tickerRenderer.resume();
       await ticker.resume();
     });
 
     await gamesense.resume();
-    await renderer.resume();
+    await effectRenderer.resume();
+    await tickerRenderer.resume();
     await ticker.resume();
 });

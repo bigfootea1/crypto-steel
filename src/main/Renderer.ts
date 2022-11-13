@@ -1,27 +1,39 @@
-import { BrowserWindow, NativeImage } from "electron";
+import { BrowserWindow, NativeImage, Rectangle } from "electron";
 import EventEmitter from "events";
 import path from "path";
-import { TickerPair, TickerUpdate } from "../types/ticker";
+import { TickerUpdate } from "../types/ticker";
 import log from "./utils";
 
-const DEBUG_OFFSCREEN_BROWSER = true;
-const DEVTOOLS_ENABLED = true || DEBUG_OFFSCREEN_BROWSER;
+const ZOOM_FACTOR = 4;
 
-const ZOOM_FACTOR = DEBUG_OFFSCREEN_BROWSER ? 4 : 1;
+export interface RendererConfig {
+  width: number;
+  height: number;
+  preload: string;
+  url: string;
+  onPaint?: (event: any, dirty: Rectangle, image: NativeImage) => void;
+  onscreen?: boolean;
+  devTools?: boolean;
+  x?: number;
+  y?: number;
+  positionBelow?: Renderer;
+}
 
 export default class Renderer extends EventEmitter {
   private renderWindow: BrowserWindow;
 
-  public bitBuffer: Buffer;
-
-  constructor(private width: number = 128, private height: number = 40) {
+  constructor(private config: RendererConfig) {
     super();
     log.info("Renderer.constructor");
   }
 
+  private getZoom() {
+    return (this.config.onscreen) ? ZOOM_FACTOR : 1;
+  }
+
   public suspend = async (): Promise<void> => {
     if (this.renderWindow) {
-      log.info('Renderer.suspend');
+      log.info("Renderer.suspend");
       this.renderWindow.close();
       this.renderWindow = null;
     }
@@ -29,81 +41,67 @@ export default class Renderer extends EventEmitter {
 
   public resume = async (): Promise<void> => {
     if (!this.renderWindow) {
-      log.info('Renderer.resume');
+      log.info("Renderer.resume");
+
+      const width = this.config.width * this.getZoom();
+      const height = this.config.height * this.getZoom();
 
       // Create the browser window.
       this.renderWindow = new BrowserWindow({
+        x: this.config.x,
+        y: this.config.y,
+        width,
+        height,
         useContentSize: true,
-        width: this.width * ZOOM_FACTOR,
-        height: this.height * ZOOM_FACTOR,
         minimizable: false,
         maximizable: false,
         transparent: false,
         fullscreenable: false,
-        alwaysOnTop: DEBUG_OFFSCREEN_BROWSER,
+        titleBarStyle: 'hidden',
+        alwaysOnTop: this.config.onscreen,
         show: false,
         frame: false,
-        resizable: DEBUG_OFFSCREEN_BROWSER,
+        resizable: false,
         backgroundColor: "black",
         webPreferences: {
-          offscreen: !DEBUG_OFFSCREEN_BROWSER,
+          offscreen: !this.config.onscreen,
           textAreasAreResizable: false,
           nodeIntegration: true,
           contextIsolation: true,
-          preload: path.join(
-            __dirname,
-            "..",
-            "..",
-            "app",
-            "render",
-            "ticker-preload.js"
-          ),
+          preload: path.join(__dirname, "../../app", this.config.preload),
         },
       });
 
+      if (this.config.devTools || this.config.onscreen) {
+        this.renderWindow.webContents.openDevTools();
+      }
+
       this.renderWindow.once("ready-to-show", () => {
-        this.renderWindow.webContents.setZoomFactor(ZOOM_FACTOR);
+        this.renderWindow.webContents.setZoomFactor(this.getZoom());
         this.renderWindow.webContents.setFrameRate(20);
-        if (DEBUG_OFFSCREEN_BROWSER) {
+
+        if(this.config.positionBelow && this.config.onscreen) {
+          const bounds = this.config.positionBelow.renderWindow.getNormalBounds();
+          this.renderWindow.setBounds({ x: bounds.x, y: bounds.y + bounds.height});
+        }
+
+        if (this.config.onPaint) {
+          this.renderWindow.webContents.on("paint", this.config.onPaint);
+        }
+  
+        if (this.config.onscreen) {
           this.renderWindow.show();
         }
       });
 
-      this.renderWindow.webContents.on(
-        "paint",
-        (event, dirty, image: NativeImage) => {
-          this.emit("render", dirty, image);
-        }
+      await this.renderWindow.webContents.loadFile(
+        path.join(__dirname, "../../app", this.config.url)
       );
-
-      const rendererPage = path.join(
-        __dirname,
-        "..",
-        "..",
-        "app",
-        "render",
-        "ticker.html"
-      );
-
-      await this.renderWindow.loadFile(rendererPage);
-
-      if (DEBUG_OFFSCREEN_BROWSER || DEVTOOLS_ENABLED) {
-        this.renderWindow.webContents.openDevTools();
-      }
     }
   };
 
-  public tickerUpdate(data: TickerUpdate): void {
-    const channelName = `ticker-update-${data.base}`.toLowerCase();
-    this.renderWindow.webContents.send(channelName, data);
-  }
-
-  public tickerSubscribe(pair: TickerPair): void {
-    this.renderWindow.webContents.send("ticker-subscribe", pair);
-  }
-
-  public tickerUnsubscribe(pair: TickerPair): void {
-    this.renderWindow.webContents.send("ticker-unsubscribe", pair);
+  public send(channel: string, data: TickerUpdate | any): void {
+    this.renderWindow.webContents.send(channel.toLowerCase(), data);
   }
 
 }
