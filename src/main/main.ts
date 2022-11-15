@@ -2,7 +2,7 @@ import { app, NativeImage, powerMonitor, Rectangle } from 'electron';
 
 import { TickerUpdate } from '../types/ticker';
 import App from './App';
-import GameSense from './GameSense';
+import { GameSenseGame, GameSenseKeyboard, GameSenseScreen } from './GameSense';
 import Renderer from './Renderer';
 import Ticker from './Ticker';
 import log, { parsePair } from "./utils";
@@ -27,7 +27,9 @@ app.on("ready", async () => {
 
     log.debug('App READY');
 
-    const gamesense = new GameSense();
+    const gamesense = new GameSenseGame();
+    const screen = new GameSenseScreen();
+    const keyboard = new GameSenseKeyboard();
 
     const tickerRenderer = new Renderer({
       width: 128,
@@ -35,7 +37,7 @@ app.on("ready", async () => {
       preload: "render/ticker-preload.js",
       url: "render/ticker.html",
       onPaint: (event: any, rect: Rectangle, buff: NativeImage) => {
-        gamesense.updateOLED(rect, buff);
+        screen.update(rect, buff);
       },
       onscreen: ONSCREEN,
       devTools: DEVTOOLS
@@ -47,7 +49,7 @@ app.on("ready", async () => {
       preload: "render/effects-preload.js",
       url: "render/effects.html",
       onPaint: (event: any, rect: Rectangle, buff: NativeImage) => {
-        // console.log(rect);
+        keyboard.update(rect, buff);
       },
       onscreen: ONSCREEN,
       devTools: DEVTOOLS,
@@ -59,12 +61,27 @@ app.on("ready", async () => {
 
     const theApp = new App(ticker.coinMap);
 
+    const resumeAll = async () => {
+      await gamesense.resume();
+      await screen.resume();
+      await keyboard.resume();
+      await effectRenderer.resume();
+      await tickerRenderer.resume();
+      await ticker.resume();
+    };
+
+    const suspendAll = async () => {
+      await ticker.suspend();
+      await tickerRenderer.suspend();
+      await effectRenderer.suspend();
+      await keyboard.suspend();
+      await screen.suspend();
+      await gamesense.suspend();
+    };
+
     theApp.on('quit', async () => {
       log.info('Quitting...');
-      await ticker.suspend();
-      await effectRenderer.suspend();
-      await tickerRenderer.suspend();
-      await gamesense.suspend();
+      await suspendAll();
       app.quit();
     });
 
@@ -85,24 +102,8 @@ app.on("ready", async () => {
       tickerRenderer.send("ticker-unsubscribe",parsePair(sub.pair));
     });
 
-    powerMonitor.on("suspend", async () => {
-      log.info('CryptoSteel.suspend');
-      await ticker.suspend();
-      await effectRenderer.suspend();
-      await tickerRenderer.suspend();
-      await gamesense.suspend();
-    });
-    
-    powerMonitor.on("resume", async () => {
-      log.info('CryptoSteel.resume');
-      await gamesense.resume();
-      await effectRenderer.resume();
-      await tickerRenderer.resume();
-      await ticker.resume();
-    });
+    powerMonitor.on("suspend", suspendAll);
+    powerMonitor.on("resume", resumeAll);
 
-    await gamesense.resume();
-    await effectRenderer.resume();
-    await tickerRenderer.resume();
-    await ticker.resume();
+    resumeAll();
 });

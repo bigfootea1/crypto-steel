@@ -14,8 +14,6 @@ export interface RendererConfig {
   onPaint?: (event: any, dirty: Rectangle, image: NativeImage) => void;
   onscreen?: boolean;
   devTools?: boolean;
-  x?: number;
-  y?: number;
   positionBelow?: Renderer;
 }
 
@@ -24,7 +22,7 @@ export default class Renderer extends EventEmitter {
 
   constructor(private config: RendererConfig) {
     super();
-    log.info("Renderer.constructor");
+    log.info(`Renderer.constructor: ${this.config.url}`);
   }
 
   private getZoom() {
@@ -33,7 +31,7 @@ export default class Renderer extends EventEmitter {
 
   public suspend = async (): Promise<void> => {
     if (this.renderWindow) {
-      log.info("Renderer.suspend");
+      log.info(`Renderer.suspend: ${this.config.url}`);
       this.renderWindow.close();
       this.renderWindow = null;
     }
@@ -41,18 +39,17 @@ export default class Renderer extends EventEmitter {
 
   public resume = async (): Promise<void> => {
     if (!this.renderWindow) {
-      log.info("Renderer.resume");
+      log.info(`Renderer.resume: ${this.config.url}`);
 
       const width = this.config.width * this.getZoom();
       const height = this.config.height * this.getZoom();
 
       // Create the browser window.
       this.renderWindow = new BrowserWindow({
-        x: this.config.x,
-        y: this.config.y,
         width,
         height,
-        useContentSize: true,
+        minWidth: width,
+        minHeight: height,
         minimizable: false,
         maximizable: false,
         transparent: false,
@@ -61,7 +58,7 @@ export default class Renderer extends EventEmitter {
         alwaysOnTop: this.config.onscreen,
         show: false,
         frame: false,
-        resizable: false,
+        resizable: true,
         backgroundColor: "black",
         webPreferences: {
           offscreen: !this.config.onscreen,
@@ -78,7 +75,7 @@ export default class Renderer extends EventEmitter {
 
       this.renderWindow.once("ready-to-show", () => {
         this.renderWindow.webContents.setZoomFactor(this.getZoom());
-        this.renderWindow.webContents.setFrameRate(20);
+        this.renderWindow.webContents.setFrameRate(30);
 
         if(this.config.positionBelow && this.config.onscreen) {
           const bounds = this.config.positionBelow.renderWindow.getNormalBounds();
@@ -88,7 +85,9 @@ export default class Renderer extends EventEmitter {
         if (this.config.onPaint) {
           this.renderWindow.webContents.on("paint", this.config.onPaint);
         }
-  
+
+        this.renderWindow.setSize(this.config.width, this.config.height);
+
         if (this.config.onscreen) {
           this.renderWindow.show();
         }

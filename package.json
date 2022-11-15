@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "Crypto Ticker for your SteelSeries gear",
   "repository": "",
+  "main": "./app/main.js",
   "keywords": [],
   "author": "Darren Schueller",
   "license": "Apache-2.0",
