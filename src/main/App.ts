@@ -18,13 +18,11 @@ export type CoinMap = Record<string, any>;
 type Config = {
   base: string[];
   quote: string;
-  updateRate: number;
 };
 
 const defaultConfig: Config = {
   base: ["BTC", "ETH"],
-  quote: "USD",
-  updateRate: 0,
+  quote: "USD"
 };
 
 export default class App extends EventEmitter {
@@ -143,6 +141,9 @@ export default class App extends EventEmitter {
   private setPairs(quote: string, base: string[]) {
     if (!isEqual(this.config.base,base) || this.config.quote !== quote) {
 
+      const prevQuote = this.config.quote;
+      const prevBase = this.config.base.slice();
+
       const validCoins = filter(base, (coin: string) => has(this.coinMap[quote], coin));
       this.config.base = validCoins;
 
@@ -153,8 +154,9 @@ export default class App extends EventEmitter {
 
       this.config.quote = quote;
       this.saveConfig();
+
+      this.emit("config-change", { base: prevBase, quote: prevQuote }, this.config);
     }
     this.updateMenu();
-    this.emit("config-change", this.config);
   }
 }

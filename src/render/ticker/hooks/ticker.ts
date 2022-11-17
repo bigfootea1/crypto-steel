@@ -1,16 +1,9 @@
 import { useEffect, useState } from "react";
-import { TickerUpdate } from "../../../types/ticker";
+import { EmptyUpdate, TickerUpdate } from "../../../types/ticker";
 import debounce from 'lodash/debounce';
 
 export function useTicker(tickerBase: string): TickerUpdate {
-  const [update, setUpdate] = useState<TickerUpdate>({
-    open: 0,
-    close: 0,
-    diff: 0,
-    delta: 0,
-    base: "",
-    quote: "",
-  });
+  const [update, setUpdate] = useState<TickerUpdate>(EmptyUpdate);
 
   useEffect(() => {
     const debouncedUpdate = debounce(setUpdate, 1000);

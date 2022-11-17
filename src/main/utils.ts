@@ -42,13 +42,15 @@ export function handleError(source: string, err: string | Error): void {
   log.error(source, error.message);
 }
 
-export function parsePair(pairString: string): { base: string; quote: string } {
+export function parsePair(pairString: string): { base: string; quote: string, interval: number } {
   const pair = pairString.split("/");
   const base = pair[0] === "XBT" ? "BTC" : pair[0];
   const quote = pair[1] === "XBT" ? "BTC" : pair[1];
+  const interval = parseInt(pair[2]);
   return {
     base,
     quote,
+    interval
   };
 }
 
