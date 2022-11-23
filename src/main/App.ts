@@ -10,8 +10,7 @@ import filter from "lodash/filter";
 import isEqual from "lodash/isEqual";
 import path from "path";
 import log, { getIcon } from "./utils";
-
-const DEBUG_EFFECTS = false;
+import { DEBUG_EFFECTS } from "../types/constants";
 
 export type CoinMap = Record<string, any>;
 

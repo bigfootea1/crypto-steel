@@ -1,10 +1,9 @@
 import { BrowserWindow, NativeImage, Rectangle } from "electron";
 import EventEmitter from "events";
 import path from "path";
+import { ZOOM_FACTOR } from "../types/constants";
 import { TickerUpdate } from "../types/ticker";
 import log from "./utils";
-
-const ZOOM_FACTOR = 4;
 
 export interface RendererConfig {
   width: number;

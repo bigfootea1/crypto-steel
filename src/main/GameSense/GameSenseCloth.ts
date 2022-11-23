@@ -1,9 +1,8 @@
 import EventEmitter from "events";
 import log, { handleError } from "../utils";
 
-// const GAMESENSE_GAME_NAME = "CRYPTO-STEEL";
-// const GAMESENSE_GAME_DESCRIPTION = "Cryptocurrency Ticker";
-// const GAMESENSE_GAME_DEVELOPER = "Darren Schueller";
+/// The APEX cloth interface is yet to be implemented.
+///  TBD TBD TBD
 
 export class GameSenseCloth extends EventEmitter {
 

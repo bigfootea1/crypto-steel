@@ -1,0 +1,28 @@
+@font-face{
+    font-family: roboto;
+    src: url(../fonts/roboto.ttf)
+}
+
+.ticker-price {
+    background-color: black;
+    font-family: 'roboto', sans-serif;
+    user-select: none;
+    width: 128px;
+    height: 40px;
+}
+
+.ticker-price-value {
+    position: absolute;
+    top: -4px;
+    text-align: center;
+    font-size: 21px;
+    width: 103px;
+}
+
+.ticker-price-quote {
+    position: absolute;
+    text-align: center;
+    font-size: 16px;
+    bottom: -2px;
+    width: 103px;
+}

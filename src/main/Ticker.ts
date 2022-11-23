@@ -4,23 +4,21 @@ import kracken from "./gotKracken";
 import log, {
   handleError,
   normalizePair,
-  parsePair,
+  parsePair
 } from "./utils";
 
 import filter from "lodash/filter";
 import forEach from "lodash/forEach";
+import has from "lodash/has";
 import invoke from "lodash/invoke";
 import map from "lodash/map";
-import has from "lodash/has";
 import mapKeys from "lodash/mapKeys";
 import sortBy from "lodash/sortBy";
 import uniqBy from "lodash/uniqBy";
 
 import { setTimeout } from "timers/promises";
-import keys from "lodash/keys";
 import { TickerUpdate } from "../types/ticker";
-
-const PUBLIC_WSS_URL = "wss://ws.kraken.com";
+import { PUBLIC_WSS_URL } from "../types/constants";
 
 type OHLCUpdate = [
   channelId: number,

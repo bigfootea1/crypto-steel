@@ -1,0 +1,20 @@
+@font-face{
+    font-family: roboto;
+    src: url(../fonts/roboto.ttf)
+}
+
+.ticker-graph {
+    background-color: black;
+    font-family: 'roboto', sans-serif;
+    user-select: none;
+    width: 128px;
+    height: 40px;
+}
+
+.ticker-graph-canvas {
+    position: absolute;
+    /* width: 103px;
+    height: 40px; */
+    left: 0px;
+    stroke:white;
+}
