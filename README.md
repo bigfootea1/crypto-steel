@@ -2,6 +2,8 @@
 
 **See your Crypto assets in real-time on your APEX Pro Keyboard Display**
 
+![Ticker Image](./images/20221123_230904.jpg) ![Graph Image](./images/20221123_230923.jpg)
+
 This application runs in the background in your system tray.  You can select a coin and "quote" (ie: the currency to quote the coin in) combo.  The real-time price and 24 hour running price graph are presented in a rotating display on the APEX OLED.
 
 ## Pre-Requisites
