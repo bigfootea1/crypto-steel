@@ -20,7 +20,7 @@ type Config = {
 };
 
 const defaultConfig: Config = {
-  base: ["BTC", "ETH"],
+  base: ["BTC"],
   quote: "USD"
 };
 

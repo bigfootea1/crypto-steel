@@ -43,12 +43,14 @@ app.on("window-all-closed", () => {
 app.on("ready", async () => {
   let candleData: CandleUpdate[] = [];
 
+  /// Validate that the GameSense driver is loaded and working
   await initGameSense();
 
   const gamesensegame = new GameSenseGame();
   const screen = new GameSenseScreen();
   const keyboard = new GameSenseKeyboard();
 
+  // Create a renderer for the ticker screen
   const tickerRenderer = new Renderer({
     width: STEELSERIES_APEX_SCREEN_WIDTH,
     height: STEELSERIES_APEX_SCREEN_HEIGHT,
@@ -61,6 +63,7 @@ app.on("ready", async () => {
     devTools: DEVTOOLS,
   });
 
+  // Create a renderer for the keyboard lighting effects
   const effectRenderer = new Renderer({
     width: 22,
     height: 6,
@@ -74,11 +77,16 @@ app.on("ready", async () => {
     positionBelow: tickerRenderer,
   });
 
+  // TODO: create renderer for the PRISM cloth.
+
   const ticker = new Ticker();
+
+  // Load the configuration and assets from Kracken
   await ticker.loadAssets();
 
   const theApp = new App(ticker.coinMap);
 
+  /// Resume all services when machine is awakened
   const resumeAll = async () => {
     await gamesensegame.resume();
     await screen.resume();
@@ -88,6 +96,7 @@ app.on("ready", async () => {
     await ticker.resume();
   };
 
+  /// Resume all services when machine goes to sleep
   const suspendAll = async () => {
     await ticker.suspend();
     await tickerRenderer.suspend();
@@ -97,6 +106,7 @@ app.on("ready", async () => {
     await gamesensegame.suspend();
   };
 
+  // Subscribe to the ticker and candle updates for a particular pair
   const subscribePair = async (pair: string) => {
     ticker.subscribe(pair, 1);
     ticker.subscribe(pair, CANDLE_INTERVAL_MINUTES);
@@ -107,6 +117,7 @@ app.on("ready", async () => {
     ticker.unsubscribe(pair, CANDLE_INTERVAL_MINUTES);
   };
 
+  /// Retrieves the historical candle data from the Kracken REST api.
   const getCandles = async (candlePair: string): Promise<any[]> => {
     const pair = candlePair.replace("/", "");
 
@@ -141,12 +152,15 @@ app.on("ready", async () => {
     return sortBy(result, "endtime");
   };
 
+  /// When we're quitting, make sure we close everything properly
   theApp.on("quit", async () => {
     log.info("Quitting...");
     await suspendAll();
     app.quit();
   });
 
+  /// When the WebSocket delivers a ticker update, we process it here and send it
+  /// down to the ticker renderer
   ticker.on("update", (tickerUpdate: TickerUpdate) => {
     if (
       candleData.length &&
@@ -186,12 +200,17 @@ app.on("ready", async () => {
     }
   });
 
+  /// The status-change message is received upon connection to the Kracken WebSocket.
+  /// It is also sent whenever the server goes into "maintenance mode", etc
+  /// TODO:  Properly handle server status changes while running
   ticker.on("status-change", () => {
     forEach(theApp.base, (base) => {
       subscribePair(`${base}/${theApp.quote}`);
     });
   });
 
+  /// The main app will fire a config-change event when the user changes the base/quote settings.
+  /// TODO: Add more settings, allow time/delay settings, etc.
   theApp.on("config-change", (fromConfig, config) => {
     // log.info(`config-change: ${JSON.stringify(fromConfig, null, 2)} - ${JSON.stringify(config, null, 2)}`);
     const baseRemoved: string[] = difference<string>(
@@ -211,6 +230,7 @@ app.on("ready", async () => {
     });
   });
 
+  /// Received when a ticker pair has been successfully subscribed to the WebSocket
   ticker.on("subscribed", async (sub: Subscription) => {
     const pair = parsePair(sub.pair);
     if (sub.subscription.interval === CANDLE_INTERVAL_MINUTES) {
@@ -237,5 +257,7 @@ app.on("ready", async () => {
   powerMonitor.on("suspend", suspendAll);
   powerMonitor.on("resume", resumeAll);
 
+  /// Upon initial startup, it's exactly the same as resuming from sleep,
+  /// thus is why we call resumeAll() to start everything up.
   resumeAll();
 });

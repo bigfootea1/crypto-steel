@@ -9,6 +9,9 @@ type TickerSubAction = {
   pair: TickerPair;
 };
 
+/// This hook handles the subscribe and unsubscribe messages from
+/// the main process.  When a subscribe happens, the pair is added
+/// to the current list.  When an unsub happens, it is removed.
 export function useTickerSubscriptions(): TickerPair[] {
   const [pairs, dispatch] = useReducer(
     (state: TickerPair[], action: TickerSubAction) =>

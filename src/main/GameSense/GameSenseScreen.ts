@@ -57,6 +57,8 @@ export class GameSenseScreen extends EventEmitter {
     if(hasGameSense()) {
       const bmp = img.getBitmap();
 
+      /// Ratserize the bitmap from the browser window instance into the proper 
+      /// resolution and color space for the OLED screen
       for (let y = rect.y; y < rect.y + rect.height; y++) {
         for (let x = rect.x; x < rect.x + rect.width; x++) {
           const srcIndex = y * (this.width * 4) + x * 4;
@@ -66,7 +68,8 @@ export class GameSenseScreen extends EventEmitter {
           this.bitmapBuffer[destIndex] = srcVal ? 1 : 0;
         }
       }
-  
+
+      /// Transmit the image data to the gamesense SDK
       const evt = {
         game: GAMESENSE_GAME_NAME,
         event: "SCREENUPDATE",

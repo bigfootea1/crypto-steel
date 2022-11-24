@@ -20,6 +20,7 @@ import { setTimeout } from "timers/promises";
 import { TickerUpdate } from "../types/ticker";
 import { PUBLIC_WSS_URL } from "../types/constants";
 
+/// Candle data update
 type OHLCUpdate = [
   channelId: number,
   data: [
@@ -41,6 +42,7 @@ type GenericKrackenEvent = {
   event: string;
 };
 
+/// Subscription information sent by Kracken
 export type Subscription = {
   channelID: number;
   channelName: string;
@@ -63,6 +65,8 @@ export default class Ticker extends EventEmitter {
     super();
   }
 
+  /// Load the settings file and build the coin map for all
+  /// valid pair combinations
   public async loadAssets(): Promise<void> {
     const assets: any = await kracken("AssetPairs")
       .json<any[]>()
@@ -113,6 +117,7 @@ export default class Ticker extends EventEmitter {
     await this.disconnect();
   }
 
+  /// Request a subscription to ticker events for a specified pair
   public subscribe = async (pair: string, interval = 1): Promise<void> => {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       const { base, quote } = parsePair(pair);
@@ -135,6 +140,7 @@ export default class Ticker extends EventEmitter {
     }
   };
 
+  /// Request an unsubscription from ticker events for a specified pair
   public unsubscribe = async (pair: string, interval = 1): Promise<void> => {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       const { base, quote } = parsePair(pair);
@@ -157,6 +163,7 @@ export default class Ticker extends EventEmitter {
     }
   };
 
+  /// Connect to the Kracken WebSocket
   private async connect() {
     if (!this.ws && !this.suspended) {
       log.debug("Ticker.connect");
@@ -176,6 +183,7 @@ export default class Ticker extends EventEmitter {
     }
   }
 
+  /// Disconnect from the Kracken WebSocket
   private async disconnect() {
     if (this.ws) {
       log.debug("Ticker.disconnect");
@@ -184,6 +192,7 @@ export default class Ticker extends EventEmitter {
     }
   }
 
+  /// Retry connection to WebSocket
   private async retryConnection() {
     if (!this.suspended) {
       log.debug("...Scheduling connection retry");
@@ -225,6 +234,7 @@ export default class Ticker extends EventEmitter {
     }
   };
 
+  /// Parse the Kracken ticker update message into something useful
   private tickerUpdate = (update: OHLCUpdate): void => {
     const starttime = parseFloat(update[1][0]);
     const endtime = parseFloat(update[1][1]);
@@ -267,6 +277,7 @@ export default class Ticker extends EventEmitter {
     this.emit("status-change", data);
   };
 
+  /// Handler for sub/unsub 
   private subscriptionStatus = async (data: any): Promise<void> => {
     
     if (data.status === "subscribed") {
