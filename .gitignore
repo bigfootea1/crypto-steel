@@ -1,8 +1,9 @@
 node_modules
 app
-dist
+dist/*/*
+dist/*.yml
+dist/*.yaml
+dist/*.blockmap
 .parcel-cache
 static/html
 static/html/index.html
-
-
