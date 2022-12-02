@@ -18,13 +18,13 @@ export const Ticker: VFC = () => {
 
   subs.forEach(({ base, quote }) => {
     slides.push(
-      <SwiperSlide key={`${base}/${quote}-graph`}>
-        <TickerGraph quote={quote} base={base} />
+      <SwiperSlide key={`${base}/${quote}-price`}>
+        <TickerPrice quote={quote} base={base} />
       </SwiperSlide>
     );
     slides.push(
-      <SwiperSlide key={`${base}/${quote}-price`}>
-        <TickerPrice quote={quote} base={base} />
+      <SwiperSlide key={`${base}/${quote}-graph`}>
+        <TickerGraph quote={quote} base={base} />
       </SwiperSlide>
     );
   });

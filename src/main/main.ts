@@ -41,7 +41,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("ready", async () => {
-  let candleData: CandleUpdate[] = [];
+  const candleData: Record< string, CandleUpdate[] > = {};
 
   /// Validate that the GameSense driver is loaded and working
   await initGameSense();
@@ -60,7 +60,7 @@ app.on("ready", async () => {
       screen.update(rect, buff);
     },
     onscreen: ONSCREEN || !hasGameSense(),
-    devTools: DEVTOOLS,
+    devTools: DEVTOOLS || ONSCREEN || !hasGameSense(),
   });
 
   // Create a renderer for the keyboard lighting effects
@@ -73,7 +73,7 @@ app.on("ready", async () => {
       keyboard.update(rect, buff);
     },
     onscreen: ONSCREEN || !hasGameSense(),
-    devTools: DEVTOOLS,
+    devTools: DEVTOOLS || ONSCREEN || !hasGameSense(),
     positionBelow: tickerRenderer,
   });
 
@@ -163,14 +163,15 @@ app.on("ready", async () => {
   /// down to the ticker renderer
   ticker.on("update", (tickerUpdate: TickerUpdate) => {
     if (
-      candleData.length &&
+      candleData[tickerUpdate.base] &&
+      candleData[tickerUpdate.base].length &&
       tickerUpdate.interval === CANDLE_INTERVAL_MINUTES
     ) {
-      const firstUpdate = first(candleData);
-      const lastUpdate = last(candleData);
+      const firstUpdate = first(candleData[tickerUpdate.base]);
+      const lastUpdate = last(candleData[tickerUpdate.base]);
 
       if (tickerUpdate.endtime > lastUpdate.endtime) {
-        candleData.push({
+        candleData[tickerUpdate.base].push({
           endtime: tickerUpdate.endtime,
           open: tickerUpdate.open,
           high: tickerUpdate.high,
@@ -184,12 +185,12 @@ app.on("ready", async () => {
           (tickerUpdate.endtime - firstUpdate.endtime) / 60 >=
           CANDLE_RANGE_MINUTES
         ) {
-          candleData = drop(candleData);
+          candleData[tickerUpdate.base] = drop(candleData[tickerUpdate.base]);
         }
         log.info('Sending candles for ', `candle-update-${tickerUpdate.base}`.toLowerCase());
         tickerRenderer.send(
           `candle-update-${tickerUpdate.base}`.toLowerCase(),
-          candleData
+          candleData[tickerUpdate.base]
         );
       }
     } else {
@@ -234,10 +235,10 @@ app.on("ready", async () => {
   ticker.on("subscribed", async (sub: Subscription) => {
     const pair = parsePair(sub.pair);
     if (sub.subscription.interval === CANDLE_INTERVAL_MINUTES) {
-      candleData = await getCandles(sub.pair);
+      candleData[pair.base] = await getCandles(sub.pair);
       tickerRenderer.send(
         `candle-update-${pair.base}`.toLowerCase(),
-        candleData
+        candleData[pair.base]
       );
     } else {
       tickerRenderer.send("ticker-subscribe", {

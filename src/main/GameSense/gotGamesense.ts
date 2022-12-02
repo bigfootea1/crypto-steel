@@ -31,11 +31,11 @@ export async function initGameSense(): Promise<boolean> {
         json: {
           game: GAMESENSE_GAME_NAME,
         },
-      });
-      gamesenseActive = true;
+      }).then(() => gamesenseActive = true);
     }
   } catch (err) {
     /// Failure means no gamesense
+    gamesenseActive = false;   
     console.log("Heartbeat to GameSense Failed...DISABLING GameSense");
   }
   return gamesenseActive;

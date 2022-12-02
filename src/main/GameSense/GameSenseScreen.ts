@@ -10,7 +10,8 @@ import {
 } from "../../types/constants";
 
 export class GameSenseScreen extends EventEmitter {
-  private bitmapBuffer: any;
+  private bitmapBuffer: any[] = [2];
+  private bufferIndex = 0;
 
   constructor(
     private width: number = STEELSERIES_APEX_SCREEN_WIDTH,
@@ -18,7 +19,8 @@ export class GameSenseScreen extends EventEmitter {
   ) {
     super();
     log.info("GameSenseScreen.constructor");
-    this.bitmapBuffer = Buffer.alloc(width * height, 0);
+    this.bitmapBuffer[0] = Buffer.alloc(width * height, 0);
+    this.bitmapBuffer[1] = Buffer.alloc(width * height, 0);
   }
 
   async resume(): Promise<void> {
@@ -65,24 +67,29 @@ export class GameSenseScreen extends EventEmitter {
           const destIndex = y * this.width + x;
           const srcVal =
             bmp[srcIndex] + bmp[srcIndex + 1] + bmp[srcIndex + 2] >= 128 * 3;
-          this.bitmapBuffer[destIndex] = srcVal ? 1 : 0;
+          this.bitmapBuffer[this.bufferIndex][destIndex] = srcVal ? 1 : 0;
         }
       }
 
-      /// Transmit the image data to the gamesense SDK
-      const evt = {
-        game: GAMESENSE_GAME_NAME,
-        event: "SCREENUPDATE",
-        data: {
-          frame: {
-            "image-data-128x40": [...create(this.bitmapBuffer)],
+      const dirty = !this.bitmapBuffer[0].equals(this.bitmapBuffer[1]);
+      this.bufferIndex = (this.bufferIndex === 0) ? 1 : 0;
+
+      if(dirty) {
+        /// Transmit the image data to the gamesense SDK
+        const evt = {
+          game: GAMESENSE_GAME_NAME,
+          event: "SCREENUPDATE",
+          data: {
+            frame: {
+              "image-data-128x40": [...create(this.bitmapBuffer[this.bufferIndex])],
+            },
           },
-        },
-      };
-  
-      await gamesense("game_event", { json: evt }).catch((err) => {
-        handleError("updateOLED", err);
-      });
+        };
+    
+        await gamesense("game_event", { json: evt }).catch((err) => {
+          handleError("updateOLED", err);
+        });
+      }
     }
   };
 

@@ -12,7 +12,7 @@ export const CONTENT_WIDTH = STEELSERIES_APEX_SCREEN_WIDTH - HEADER_WIDTH;
 export const DEBUG_EFFECTS = false;
 
 export const ONSCREEN = false;
-export const DEVTOOLS = true || ONSCREEN;
+export const DEVTOOLS = false;
 
 export const CANDLE_INTERVAL_MINUTES = 15;   // Each candle is one hour
 export const CANDLE_RANGE_MINUTES = 60 * 24; // Show candles for the last 24 hours
